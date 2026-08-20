@@ -1,270 +1,498 @@
 const axios = require("axios");
 
-const simsim = "https://simsimi-api-tjb1.onrender.com";
+let simsim = "";
+// Note : THIS CODE MADE BY RX @RX_ABDULLAH007 (GIVE CREDIT OTHERWISE EVERYONE FUCK YOU AT 300 KM SPEED)
+
+// 🔒 threadID lock — thread thake trigger active thakle porer trigger ignore hobe
+const triggerLocks = new Set();
 
 const typing = async (api, threadID, ms = 3000) => {
-  try {
-    if (typeof api.sendTypingIndicator === "function") {
-      await api.sendTypingIndicator(threadID, true);
-      await new Promise(resolve => setTimeout(resolve, ms));
-      await api.sendTypingIndicator(threadID, false);
-    }
-  } catch {}
+	try {
+		if (typeof api.sendTypingIndicator === "function") {
+			await api.sendTypingIndicator(threadID, true);
+			await new Promise(resolve => setTimeout(resolve, ms));
+			await api.sendTypingIndicator(threadID, false);
+		}
+	} catch {}
 };
 
-// ---------- SPAM GUARD ----------
-// tracks recent message/reply timestamps per senderID
-const spamMap = new Map(); // senderID -> [timestamps]
-const SPAM_LIMIT = 5;      // messages/replies
-const SPAM_WINDOW = 8000;  // within 8s
-const SPAM_MUTE = 15000;   // once flagged, stay silent for 15s
+// 🤖 bot's own UID cache — resolved lazily from api.getCurrentUserID()
+let botUID = null;
+function getBotUID(api) {
+	if (botUID) return botUID;
+	try {
+		if (typeof api.getCurrentUserID === "function") {
+			botUID = api.getCurrentUserID();
+		}
+	} catch {}
+	return botUID;
+}
 
-const isSpamming = (senderID) => {
-  const now = Date.now();
-  const entry = spamMap.get(senderID) || { hits: [], mutedUntil: 0 };
+// checks event.mentions (standard fca-style map: { "<uid>": "name", ... }) for bot's own uid
+function isBotMentioned(event, uid) {
+	if (!uid || !event.mentions) return false;
+	return Object.prototype.hasOwnProperty.call(event.mentions, uid);
+}
 
-  // already muted
-  if (entry.mutedUntil > now) return true;
+const greetingReplies = [
+	"𝐀𝐬𝐬𝐚𝐥𝐚𝐦𝐮 𝐰𝐚𝐥𝐚𝐢𝐤𝐮𝐦 ♥",
+	"বলেন sir__😌",
+	"𝐁𝐨𝐥𝐨 𝐣𝐚𝐧 𝐤𝐢 𝐤𝐨𝐫𝐭𝐞 𝐩𝐚𝐫𝐢 𝐭𝐨𝐦𝐫 𝐣𝐨𝐧𝐧𝐨 🐸",
+	"𝐋𝐞𝐛𝐮 𝐤𝐡𝐚𝐰 𝐝𝐚𝐤𝐭𝐞 𝐝𝐚𝐤𝐭𝐞 𝐭𝐨 𝐡𝐚𝐩𝐚𝐲 𝐠𝐞𝐬𝐨",
+	"𝐆𝐚𝐧𝐣𝐚 𝐤𝐡𝐚 𝐦𝐚𝐧𝐮𝐬𝐡 𝐡𝐨 🍁",
+	"𝐋𝐞𝐦𝐨𝐧 𝐭𝐮𝐬 🍋",
+	"মুড়ি খাও 🫥",
+	".__𝐚𝐦𝐤𝐞 𝐬𝐞𝐫𝐞 𝐝𝐞𝐰 𝐚𝐦𝐢 𝐚𝐦𝐦𝐮𝐫 𝐤𝐚𝐬𝐞 𝐣𝐚𝐛𝐨!!🥺.....😗",
+	"লুঙ্গি টা ধর মুতে আসি🙊🙉",
+	"──‎ 𝐇𝐮𝐌..? 👉👈",
+	"আম গাছে আম নাই ঢিল কেন মারো, তোমার সাথে প্রেম নাই বেবি কেন ডাকো 😒🐸",
+	"কি হলো, মিস টিস করচ্ছো নাকি 🤣",
+	"𝐓𝐫𝐮𝐬𝐭 𝐦𝐞 𝐢𝐚𝐦 𝐦𝐚𝐫ɪ𝐚 🧃",
+	"𝐇ᴇʏ 𝐗ᴀɴ 𝐈'ᴍ 𝐌𝐚𝐫ɪ𝐚 𝐁𝐚𝐛𝐲✨"
+];
 
-  // drop old hits outside window
-  entry.hits = entry.hits.filter(t => now - t < SPAM_WINDOW);
-  entry.hits.push(now);
+// small helper: race any promise against a timeout so a hung call
+// (e.g. a reaction call that never fires its callback) can never
+// block the rest of the function forever
+function withTimeout(promise, ms, label) {
+	return Promise.race([
+		promise,
+		new Promise((_, reject) =>
+			setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+		)
+	]);
+}
 
-  if (entry.hits.length >= SPAM_LIMIT) {
-    entry.mutedUntil = now + SPAM_MUTE;
-    entry.hits = [];
-    spamMap.set(senderID, entry);
-    return true; // this hit itself gets silently blocked too
-  }
+function sendMessageAsync(api, text, threadID, replyToID) {
+	return new Promise((resolve, reject) => {
+		const cb = (err, info) => (err ? reject(err) : resolve(info));
+		if (replyToID) {
+			api.sendMessage(text, threadID, cb, replyToID);
+		} else {
+			api.sendMessage(text, threadID, cb);
+		}
+	});
+}
 
-  spamMap.set(senderID, entry);
-  return false;
-};
+// shared greeting sender — used for bare-word trigger AND bot mentions
+async function sendGreeting(api, event) {
+	const reply = greetingReplies[Math.floor(Math.random() * greetingReplies.length)];
+
+	await typing(api, event.threadID, 5000);
+
+	return api.sendMessage(reply, event.threadID, (err, info) => {
+		if (!err) {
+			global.GoatBot.onReply.set(info.messageID, {
+				commandName: "baby",
+				messageID: info.messageID,
+				author: event.senderID,
+				type: "simsimi"
+			});
+		}
+	});
+}
+
+// ==========================
+//  fetch a simsimi response (text + optional reaction) and deliver it:
+//  - reacts to the user's own message with the taught emoji (if any)
+//  - sends the text reply (if any)
+//  requires senderID always; backend rate-limits 2 replies / 5s per senderID
+// ==========================
+async function deliverSimsimiResponse({ api, event, query, senderName }) {
+	const url = `${simsim}/simsimi?text=${encodeURIComponent(query)}&senderName=${encodeURIComponent(senderName)}&threadID=${encodeURIComponent(event.threadID)}&senderID=${encodeURIComponent(event.senderID)}`;
+
+	// ✅ typing indicator covers the ACTUAL backend processing time
+	// (including fuzzy match search) instead of a fixed dummy delay
+	try {
+		if (typeof api.sendTypingIndicator === "function") await api.sendTypingIndicator(event.threadID, true);
+	} catch {}
+	let res;
+	try {
+		res = await axios.get(url);
+	} finally {
+		try {
+			if (typeof api.sendTypingIndicator === "function") await api.sendTypingIndicator(event.threadID, false);
+		} catch {}
+	}
+
+	const data = res.data || {};
+
+	// silently ignored due to rate limit
+	if (data.rateLimited) return;
+
+	// ✅ reaction and text-send are fully independent —
+	// one call can never block or break the other.
+	if (data.reaction && event.messageID) {
+		withTimeout(
+			api.setMessageReaction(data.reaction, event.messageID, () => {}, true),
+			3000,
+			"setMessageReaction"
+		).catch(e => console.log("⚠️ Reaction send error:", e.message));
+	}
+
+	// independently send text reply, if any was taught
+	// quote/reply-to the message that triggered this
+	if (data.response) {
+		try {
+			const info = await sendMessageAsync(api, data.response, event.threadID, event.messageID);
+			global.GoatBot.onReply.set(info.messageID, {
+				commandName: "baby",
+				messageID: info.messageID,
+				author: event.senderID,
+				type: "simsimi"
+			});
+		} catch (e) {
+			console.log("❌ sendMessage error:", JSON.stringify(e));
+			// one retry, but without the reply-to reference in case that was the issue
+			try {
+				const info2 = await sendMessageAsync(api, data.response, event.threadID);
+				global.GoatBot.onReply.set(info2.messageID, {
+					commandName: "baby",
+					messageID: info2.messageID,
+					author: event.senderID,
+					type: "simsimi"
+				});
+			} catch (e2) {
+				console.log("❌ sendMessage failed after retry:", JSON.stringify(e2));
+			}
+		}
+	}
+}
 
 module.exports = {
-  config: {
-    name: "baby",
-    aliases: ["mari", "maria", "hippi", "xan", "bby", "vabi"],
-    version: "4.1",
-    author: "rX",
-    countDown: 0,
-    role: 0,
-    shortDescription: "Full Mirai-style Baby AI",
-    longDescription: "Teachable AI + autoteach + list/msg/edit/remove + typing + self-reply block + spam guard",
-    category: "box chat",
-    guide: {
-      en: "{p}baby [message]\n{p}baby teach [q] - [a]\n{p}baby autoteach on/off\n{p}baby list\n{p}baby msg [trigger]\n{p}baby edit [q] - [old] - [new]\n{p}baby remove/rm [q] - [a]"
-    }
-  },
+	config: {
+		name: "baby",
+		aliases: ["maria", "hippi"],
+		version: "1.3.1",
+		author: "rX",
+		countDown: 0,
+		role: 0,
+		shortDescription: "AI auto teach chat",
+		longDescription: "AI auto teach with Teach & List support + Typing effect",
+		category: "chat",
+		guide: "{pn}[query]\n{pn}list\n{pn}teach [Question] - [Reply]\n{pn}react [Question] - [Emoji]\n{pn}edit [Question] - [OldReply] - [NewReply]\n{pn}remove/rm [Question] - [Reply]\n{pn}del (reply to bot's wrong answer)\n{pn}msg [trigger]\n{pn}msg [trigger] -20 (custom show limit)\n{pn}autoteach on/off (per-thread)\n{pn}autoteach on/off global (all threads default)"
+	},
 
-  onStart: async function ({ api, event, args, message, usersData }) {
-    const senderID = event.senderID;
+	onLoad: async function () {
+		try {
+			const res = await axios.get("https://raw.githubusercontent.com/abdullahrx07/X-api/main/MaRiA/baseApiUrl.json");
+			if (res.data && res.data.mari) simsim = res.data.mari;
+		} catch {}
+	},
 
-    // 1. never react to the bot's own sent messages
-    if (senderID === api.getCurrentUserID()) return;
+	onStart: async function ({ api, event, args, usersData }) {
+		const uid = event.senderID;
+		const senderName = await usersData.getName(uid);
+		const query = args.join(" ").toLowerCase();
 
-    // 2. silent spam block
-    if (isSpamming(senderID)) return;
+		try {
+			if (!simsim) return api.sendMessage("❌ API not loaded yet.", event.threadID, event.messageID);
 
-    const senderName = await usersData.getName(senderID);
-    const threadID = event.threadID;
-    const query = args.join(" ").trim().toLowerCase();
+			// ==========================
+			//  autoteach on/off  -> per-thread by default
+			//  autoteach on/off global -> affects every thread with no override
+			// ==========================
+			if (args[0] === "autoteach") {
+				const mode = args[1];
+				const scope = (args[2] || "").toLowerCase();
+				if (!["on", "off"].includes(mode))
+					return api.sendMessage("✅ Use: baby autoteach on/off\nOr: baby autoteach on/off global", event.threadID, event.messageID);
 
-    try {
-      // no text => random reply
-      if (!query) {
-        await typing(api, threadID, 2000);
-        const ran = ["Bolo baby 💖", "Hea baby 😚", "Yes I'm here 😘", "Ki khobor janu? 🥰"];
-        return message.reply(ran[Math.floor(Math.random() * ran.length)], (err, info) => {
-          if (!err) global.GoatBot.onReply.set(info.messageID, { commandName: "baby" });
-        });
-      }
+				const status = mode === "on";
 
-      // AUTOTEACH TOGGLE
-      if (args[0] === "autoteach") {
-        const mode = args[1]?.toLowerCase();
-        if (!["on","off"].includes(mode)) return message.reply("Use: baby autoteach on/off");
+				if (scope === "global") {
+					await axios.post(`${simsim}/setting`, { autoTeach: status });
+					return api.sendMessage(`✅ Auto teach is now ${status ? "ON 🟢" : "OFF 🔴"} 𝐆𝐋𝐎𝐁𝐀𝐋𝐋𝐘 (all threads without override)`, event.threadID, event.messageID);
+				}
 
-        const status = mode === "on";
-        await axios.post(`${simsim}/setting`, { autoTeach: status }, { timeout: 10000 });
-        return message.reply(`✅ Auto teach now ${status ? "ON 🟢" : "OFF 🔴"}`);
-      }
+				// default: per-thread only
+				const res = await axios.post(`${simsim}/setting`, { autoTeach: status, threadID: event.threadID });
+				return api.sendMessage(`✅ ${res.data.message} (𝐭𝐡𝐢𝐬 𝐭𝐡𝐫𝐞𝐚𝐝 𝐨𝐧𝐥𝐲)`, event.threadID, event.messageID);
+			}
 
-      // LIST
-      if (args[0] === "list") {
-        const res = await axios.get(`${simsim}/list`, { timeout: 10000 });
-        return message.reply(
-`╭─╼🌟 𝐁𝐚𝐛𝐲 𝐀𝐈 𝐒𝐭𝐚𝐭𝐮𝐬
-├ 📝 𝐓𝐞𝐚𝐜𝐡𝐞𝐝 𝐐𝐮𝐞𝐬𝐭𝐢𝐨𝐧𝐬: ${res.data.totalQuestions || 0}
-├ 📦 𝐒𝐭𝐨𝐫𝐞𝐝 𝐑𝐞𝐩𝐥𝐢𝐞𝐬: ${res.data.totalReplies || 0}
-╰─╼👤 𝐃𝐞𝐯: rX 𝐀𝐛𝐝𝐮𝐥𝐥𝐚𝐡`
-        );
-      }
+			if (args[0] === "list") {
+				const res = await axios.get(`${simsim}/list`);
+				return api.sendMessage(
+					`╭─╼🌟 𝐁𝐚𝐛𝐲 𝐀𝐈 𝐒𝐭𝐚𝐭𝐮𝐬\n├ 📝 𝐓𝐞𝐚𝐜𝐡𝐞𝐝 𝐐𝐮𝐞𝐬𝐭𝐢𝐨𝐧𝐬: ${res.data.totalQuestions}\n├ 📦 𝐒𝐭𝐨𝐫𝐞𝐝 𝐑𝐞𝐩𝐥𝐢𝐞𝐬: ${res.data.totalReplies}\n╰─╼👤 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫: 𝐫𝐗 𝐀𝐛𝐝𝐮𝐥𝐥𝐚𝐡`,
+					event.threadID,
+					event.messageID
+				);
+			}
 
-      // MSG
-      if (args[0] === "msg") {
-        const trigger = args.slice(1).join(" ").trim();
-        if (!trigger) return message.reply("Use: baby msg [trigger]");
+			if (args[0] === "msg") {
+				let trigger = args.slice(1).join(" ").trim();
+				if (!trigger) return api.sendMessage("❌ | Use: !baby msg [trigger]\nOr: !baby msg [trigger] -20 (custom limit)", event.threadID, event.messageID);
 
-        const res = await axios.get(`${simsim}/simsimi-list?ask=${encodeURIComponent(trigger)}`, { timeout: 10000 });
-        if (!res.data.replies?.length) return message.reply("❌ No replies found for this trigger.");
+				// 🔢 optional custom limit: "!baby msg trigger -20" → shows only 20 replies
+				let customLimit = null;
+				const limitMatch = trigger.match(/\s*-(\d+)\s*$/);
+				if (limitMatch) {
+					customLimit = parseInt(limitMatch[1], 10);
+					trigger = trigger.replace(/\s*-(\d+)\s*$/, "").trim();
+					if (!trigger) return api.sendMessage("❌ | Use: !baby msg [trigger] -20", event.threadID, event.messageID);
+				}
 
-        const formatted = res.data.replies.map((rep, i) => `➤ ${i+1}. ${rep}`).join("\n");
-        return message.reply(
-`📌 𝗧𝗿𝗶𝗴𝗴𝗲𝗿: ${trigger.toUpperCase()}
-📋 𝗧𝗼𝘁𝗮𝗹 𝗥𝗲𝗽𝗹𝗶𝗲𝘀: ${res.data.total || res.data.replies.length}
-━━━━━━━━━━━━━━
-${formatted}`
-        );
-      }
+				const res = await axios.get(`${simsim}/simsimi-list?ask=${encodeURIComponent(trigger)}`);
+				if (!res.data.replies || res.data.replies.length === 0)
+					return api.sendMessage("❌ No replies found.", event.threadID, event.messageID);
 
-      // TEACH
-      if (args[0] === "teach") {
-        const parts = query.replace(/^teach\s+/i, "").split(" - ");
-        if (parts.length < 2) return message.reply("Use: baby teach question - answer");
+				// 🔢 150+ reply thakle shudhu limit porjonto show korbe, baki koyta ase seta note hisebe dekhabe
+				const REPLY_LIMIT = (customLimit && customLimit > 0) ? customLimit : 150;
+				const allReplies = res.data.replies;
+				const shownReplies = allReplies.slice(0, REPLY_LIMIT);
+				const remaining = allReplies.length - shownReplies.length;
 
-        const [ask, ans] = parts.map(s => s.trim());
-        const res = await axios.get(`${simsim}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderName=${encodeURIComponent(senderName)}&senderID=${senderID}`, { timeout: 10000 });
-        return message.reply(res.data.message || "✅ Taught successfully!");
-      }
+				const formatted = shownReplies.map((rep, i) => `➤ ${i + 1}. ${rep}`).join("\n");
+				const limitNote = remaining > 0
+					? `\n⚠️ ${REPLY_LIMIT} 𝐭𝐚 𝐫𝐞𝐩𝐥𝐲 𝐝𝐞𝐤𝐡𝐚𝐧𝐨 𝐡𝐨𝐲𝐞𝐜𝐡𝐞, 𝐚𝐫𝐨 ${remaining} 𝐭𝐚 𝐛𝐚𝐤𝐢 𝐚𝐜𝐡𝐞 (𝐝𝐞𝐤𝐡𝐚𝐧𝐨 𝐣𝐚𝐜𝐜𝐡𝐞 𝐧𝐚, 𝐭𝐚𝐛𝐞 𝐤𝐢𝐩 𝐬𝐡𝐮𝐛𝐡 𝐫𝐞𝐩𝐥𝐢𝐫 𝐮𝐩𝐨𝐫 𝐤𝐚𝐣 𝐤𝐨𝐫𝐛𝐞)।\n`
+					: "";
+				const msg = `📌 𝗧𝗿𝗶𝗴𝗴𝗲𝗿: ${trigger.toUpperCase()}\n📋 𝗧𝗼𝘁𝗮𝗹: ${res.data.total}\n━━━━━━━━━━━━━━\n${formatted}\n━━━━━━━━━━━━━━${limitNote}✏️ Reply with the numbers you want to KEEP (e.g. "2, 7") — everything else will be removed.`;
 
-      // EDIT
-      if (args[0] === "edit") {
-        const parts = query.replace(/^edit\s+/i, "").split(" - ");
-        if (parts.length < 3) return message.reply("Use: baby edit question - old reply - new reply");
+				return api.sendMessage(msg, event.threadID, (err, info) => {
+					if (!err) {
+						global.GoatBot.onReply.set(info.messageID, {
+							commandName: "baby",
+							messageID: info.messageID,
+							author: event.senderID,
+							type: "msgSelect",
+							trigger
+						});
+					}
+				}, event.messageID);
+			}
 
-        const [ask, oldR, newR] = parts.map(s => s.trim());
-        const res = await axios.get(`${simsim}/edit?ask=${encodeURIComponent(ask)}&old=${encodeURIComponent(oldR)}&new=${encodeURIComponent(newR)}`, { timeout: 10000 });
-        return message.reply(res.data.message || "✅ Edited successfully!");
-      }
+			if (args[0] === "teach") {
+				const parts = query.replace("teach ", "").split(" - ");
+				if (parts.length < 2)
+					return api.sendMessage("❌ | Use: teach [Question] - [Reply]", event.threadID, event.messageID);
 
-      // REMOVE / RM
-      if (["remove","rm"].includes(args[0])) {
-        const parts = query.replace(/^(remove|rm)\s+/i, "").split(" - ");
-        if (parts.length < 2) return message.reply("Use: baby remove question - answer");
+				const [ask, ans] = parts;
+				const res = await axios.get(`${simsim}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderID=${uid}&senderName=${encodeURIComponent(senderName)}`);
+				return api.sendMessage(`✅ ${res.data.message}`, event.threadID, event.messageID);
+			}
 
-        const [ask, ans] = parts.map(s => s.trim());
-        const res = await axios.get(`${simsim}/delete?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}`, { timeout: 10000 });
-        return message.reply(res.data.message || "✅ Removed successfully!");
-      }
+			// ==========================
+			//  react [Question] - [Emoji]  — teach a reaction for a trigger
+			//  merges into the same question doc as text replies
+			// ==========================
+			if (args[0] === "react") {
+				// use original-case args (emoji shouldn't be lowercased, and query is already lowercased above)
+				const rawQuery = args.slice(1).join(" ");
+				const parts = rawQuery.split(" - ");
+				if (parts.length < 2)
+					return api.sendMessage("❌ | Use: react [Question] - [Emoji]", event.threadID, event.messageID);
 
-      // Normal chat
-      await typing(api, threadID, 2000);
-      const res = await axios.get(`${simsim}/simsimi?text=${encodeURIComponent(query)}&senderName=${encodeURIComponent(senderName)}`, { timeout: 15000 });
+				const [ask, emoji] = parts;
+				if (!ask.trim() || !emoji.trim())
+					return api.sendMessage("❌ | Use: react [Question] - [Emoji]", event.threadID, event.messageID);
 
-      let responses = Array.isArray(res.data.response) ? res.data.response : [res.data.response || "Hmm baby 😚"];
-      for (const r of responses) {
-        await new Promise(resolve => {
-          message.reply(r, (err, info) => {
-            if (!err) global.GoatBot.onReply.set(info.messageID, { commandName: "baby" });
-            resolve();
-          });
-        });
-      }
+				const res = await axios.get(`${simsim}/teachReact?ask=${encodeURIComponent(ask)}&emoji=${encodeURIComponent(emoji)}&senderName=${encodeURIComponent(senderName)}`);
+				return api.sendMessage(`✅ ${res.data.message}`, event.threadID, event.messageID);
+			}
 
-    } catch (err) {
-      console.error("Baby command error:", err.message);
-      message.reply("❌ Error: " + (err.message.includes("404") ? "Feature not available (backend issue)" : err.message));
-    }
-  },
+			if (args[0] === "edit") {
+				const parts = query.replace("edit ", "").split(" - ");
+				if (parts.length < 3)
+					return api.sendMessage("❌ | Use: edit [Question] - [OldReply] - [NewReply]", event.threadID, event.messageID);
 
-  onReply: async function ({ api, event, message, usersData }) {
-    const senderID = event.senderID;
+				const [ask, oldR, newR] = parts;
+				const res = await axios.get(`${simsim}/edit?ask=${encodeURIComponent(ask)}&old=${encodeURIComponent(oldR)}&new=${encodeURIComponent(newR)}`);
+				return api.sendMessage(res.data.message, event.threadID, event.messageID);
+			}
 
-    // 1. never react to the bot's own sent messages
-    if (senderID === api.getCurrentUserID()) return;
+			if (["remove", "rm"].includes(args[0])) {
+				const parts = query.replace(/^(remove|rm)\s*/, "").split(" - ");
+				if (parts.length < 2)
+					return api.sendMessage("❌ | Use: remove [Question] - [Reply]", event.threadID, event.messageID);
 
-    // 2. silent spam block
-    if (isSpamming(senderID)) return;
+				const [ask, ans] = parts;
+				const res = await axios.get(`${simsim}/delete?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}`);
+				return api.sendMessage(res.data.message, event.threadID, event.messageID);
+			}
 
-    const text = event.body?.trim();
-    if (!text) return;
-    const senderName = await usersData.getName(senderID);
+			if (args[0] === "del") {
+				return api.sendMessage(
+					"❌ | Reply to the bot's wrong answer message with \"!baby del\" to delete it.",
+					event.threadID,
+					event.messageID
+				);
+			}
 
-    try {
-      await typing(api, event.threadID, 2000);
-      const res = await axios.get(`${simsim}/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`, { timeout: 15000 });
+			if (!query) {
+				const texts = ["Hey baby 💖", "Yes, I'm here 😘"];
+				const reply = texts[Math.floor(Math.random() * texts.length)];
+				return api.sendMessage(reply, event.threadID);
+			}
 
-      const replies = Array.isArray(res.data.response) ? res.data.response : [res.data.response];
-      for (const r of replies) {
-        await message.reply(r, (err, info) => {
-          if (!err) global.GoatBot.onReply.set(info.messageID, { commandName: "baby" });
-        });
-      }
-    } catch (err) {
-      console.error("onReply error:", err.message);
-    }
-  },
+			return await deliverSimsimiResponse({ api, event, query, senderName });
 
-  onChat: async function ({ api, event, message, usersData }) {
-    const senderID = event.senderID;
+		} catch (e) {
+			return api.sendMessage(`❌ Error: ${e.message}`, event.threadID, event.messageID);
+		}
+	},
 
-    // 1. never react to the bot's own sent messages
-    if (senderID === api.getCurrentUserID()) return;
+	onReply: async function ({ api, event, Reply, usersData }) {
+		const senderName = await usersData.getName(event.senderID);
+		const text = event.body?.trim();
+		const lowered = text?.toLowerCase();
 
-    // 2. silent spam block
-    if (isSpamming(senderID)) return;
+		if (!simsim) return;
 
-    const raw = event.body ? event.body.toLowerCase().trim() : "";
-    if (!raw) return;
+		// ==========================
+		//  !baby del  — reply to bot's wrong answer to delete it
+		//  (uses event.messageReply.body directly — always the true original
+		//  text of whatever bot message was replied to, registered or not)
+		// ==========================
+		if (lowered === "del" || lowered === "!baby del") {
+			try {
+				const originalReply = event.messageReply?.body;
+				if (!originalReply) {
+					return api.sendMessage("❌ Couldn't read the original message to delete.", event.threadID, event.messageID);
+				}
 
-    const senderName = await usersData.getName(senderID);
-    const threadID = event.threadID;
+				const res = await axios.get(`${simsim}/deleteByReply?reply=${encodeURIComponent(originalReply)}`);
+				return api.sendMessage(res.data.message, event.threadID, event.messageID);
+			} catch (e) {
+				return api.sendMessage(`❌ Failed to delete: ${e.message}`, event.threadID, event.messageID);
+			}
+		}
 
-    try {
-      // triggers only
-      const triggers = ["baby","bby","xan","bbz","mari","মারিয়া","bot"];
-      if (triggers.includes(raw)) {
-        await typing(api, threadID, 5000);
-        const funny = [
-          "𝘬𝘪 𝘏𝘰𝘪𝘴𝘦 𝘑𝘢𝘯 𝘣𝘰𝘭𝘰 😿", "𝘌𝘵𝘰 𝘋𝘢𝘬𝘰 𝘒𝘦𝘯 𝘚𝘶𝘯𝘴𝘪 𝘛𝘰 🙆‍♀️", "𝘌𝘵𝘰 𝘉𝘰𝘵 𝘉𝘰𝘵 𝘒𝘰𝘳𝘭𝘦 𝘓𝘦𝘢𝘷𝘦 𝘕𝘪𝘮𝘶 🙂",
-          "𝘛𝘶𝘮𝘪 𝘋𝘢𝘬𝘭𝘦𝘪 𝘊𝘰𝘭𝘦 𝘈𝘴𝘪 🙆‍♀️", "ওই জান এতোবার ডাকো কেন 🥹", "আমাকে না ডেকে আকাশ ভাই কে প্রোপোজ কর 🌷🫶",
-          "হুম বলো পাখি 🫶🐤 ", "তুমারে রাইতে ভালোবাসি 😘", "আমাকে ডাকছো? 🙂"
-        ];
-        return message.reply(funny[Math.floor(Math.random() * funny.length)], (err, info) => {
-          if (!err) global.GoatBot.onReply.set(info.messageID, { commandName: "baby" });
-        });
-      }
+		// ==========================
+		//  !baby msg selection — "keep these numbers" reply
+		// ==========================
+		if (Reply?.type === "msgSelect") {
+			// only original command caller can respond
+			if (event.senderID !== Reply.author) return;
 
-      // prefixes
-      const prefixes = ["baby ","bby ","xan ","bbz ","mari ","মারিয়া ","bot "];
-      const prefix = prefixes.find(p => raw.startsWith(p));
-      if (prefix) {
-        const q = raw.replace(prefix,"").trim();
-        if (!q) return;
+			const numbers = text
+				.split(",")
+				.map(n => parseInt(n.trim(), 10))
+				.filter(n => Number.isInteger(n));
 
-        await typing(api, threadID, 2000);
-        const res = await axios.get(`${simsim}/simsimi?text=${encodeURIComponent(q)}&senderName=${encodeURIComponent(senderName)}`, { timeout: 15000 });
+			if (numbers.length === 0) {
+				return api.sendMessage("❌ Send numbers like: 2, 7", event.threadID, event.messageID);
+			}
 
-        const replies = Array.isArray(res.data.response) ? res.data.response : [res.data.response];
-        for (const r of replies) {
-          await message.reply(r, (err, info) => {
-            if (!err) global.GoatBot.onReply.set(info.messageID, { commandName: "baby" });
-          });
-        }
-        return;
-      }
+			try {
+				const res = await axios.post(`${simsim}/keepOnly`, {
+					ask: Reply.trigger,
+					keepIndexes: numbers
+				});
+				return api.sendMessage(res.data.message, event.threadID, event.messageID);
+			} catch (e) {
+				return api.sendMessage(`❌ Failed to update: ${e.message}`, event.threadID, event.messageID);
+			}
+		}
 
-      // AUTO-TEACH from reply
-      if (event.messageReply) {
-        try {
-          const setting = await axios.get(`${simsim}/setting`, { timeout: 8000 });
-          if (setting.data?.autoTeach) {
-            const ask = event.messageReply.body?.toLowerCase().trim();
-            const ans = raw.trim();
-            if (ask && ans && ask !== ans) {
-              setTimeout(async () => {
-                try {
-                  await axios.get(`${simsim}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderName=${encodeURIComponent(senderName)}`, { timeout: 10000 });
-                } catch {}
-              }, 500);
-            }
-          }
-        } catch {}
-      }
+		if (!text) return;
 
-    } catch (err) {
-      console.error("onChat error:", err.message);
-    }
-  }
+		// ==========================
+		//  normal simsimi conversation continuation
+		// ==========================
+		try {
+			return await deliverSimsimiResponse({ api, event, query: lowered, senderName });
+		} catch (e) {
+			return api.sendMessage(`❌ Error: ${e.message}`, event.threadID, event.messageID);
+		}
+	},
+
+	onChat: async function ({ api, event, usersData }) {
+		const text = event.body?.toLowerCase().trim();
+		if (!simsim) return;
+
+		// ==========================
+		//  Attachment reactions — replying to bot with image/video/voice
+		//  gets an auto reaction based on attachment type.
+		// ==========================
+		if (event.type === "message_reply" && event.attachments && event.attachments.length > 0) {
+			const type = event.attachments[0].type;
+			let reaction = null;
+
+			if (type === "photo") reaction = "🫩"; // image
+			else if (type === "animated_image") reaction = "😵‍💫"; // gif
+			else if (type === "video") reaction = "🤔"; // video
+			else if (type === "audio") reaction = "🤕"; // voice message
+
+			if (reaction) {
+				try {
+					await api.setMessageReaction(reaction, event.messageID, () => {}, true);
+				} catch (e) {
+					console.log("⚠️ Attachment reaction error:", e.message);
+				}
+				return; // attachment handled — skip the text/simsimi flow below
+			}
+		}
+
+		const senderName = await usersData.getName(event.senderID);
+		const triggers = ["baby", "bby", "xan", "bbz", "mari", "মারিয়া"];
+		const uid = getBotUID(api);
+
+		// ==========================
+		//  Bot mentioned directly — always greeting, regardless of extra text
+		// ==========================
+		if (isBotMentioned(event, uid)) {
+			if (triggerLocks.has(event.threadID)) return;
+			triggerLocks.add(event.threadID);
+			try {
+				return await sendGreeting(api, event);
+			} finally {
+				triggerLocks.delete(event.threadID);
+			}
+		}
+
+		if (!text) return;
+
+		if (triggers.includes(text)) {
+			// 🔒 typing chola obosthay same thread theke abar trigger asle ignore
+			if (triggerLocks.has(event.threadID)) return;
+			triggerLocks.add(event.threadID);
+
+			try {
+				return await sendGreeting(api, event);
+			} finally {
+				triggerLocks.delete(event.threadID);
+			}
+		}
+
+		const matchPrefix = /^(baby|bby|xan|bbz|mari|মারিয়া)\s+/i;
+		if (matchPrefix.test(text)) {
+			const query = text.replace(matchPrefix, "").trim();
+			if (!query) return;
+
+			// 🔒 typing chola obosthay same thread theke abar trigger asle ignore
+			if (triggerLocks.has(event.threadID)) return;
+			triggerLocks.add(event.threadID);
+
+			try {
+				return await deliverSimsimiResponse({ api, event, query, senderName });
+			} catch (e) {
+				return api.sendMessage(`❌ Error: ${e.message}`, event.threadID, event.messageID);
+			} finally {
+				triggerLocks.delete(event.threadID);
+			}
+		}
+
+		if (event.type === "message_reply") {
+			try {
+				// per-thread autoTeach check
+				const setting = await axios.get(`${simsim}/setting?threadID=${encodeURIComponent(event.threadID)}`);
+				if (!setting.data.autoTeach) return;
+
+				const ask = event.messageReply.body?.toLowerCase().trim();
+				const ans = event.body?.toLowerCase().trim();
+				if (!ask || !ans || ask === ans) return;
+
+				setTimeout(async () => {
+					try {
+						await axios.get(`${simsim}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderName=${encodeURIComponent(senderName)}`);
+						console.log("✅ Auto-taught:", ask, "→", ans, "(thread:", event.threadID + ")");
+					} catch (err) {
+						console.error("❌ Auto-teach internal error:", err.message);
+					}
+				}, 300);
+			} catch (e) {
+				console.log("❌ Auto-teach setting error:", e.message);
+			}
+		}
+	}
 };
