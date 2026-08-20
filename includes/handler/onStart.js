@@ -16,7 +16,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 
         // <<< --- onStart LOGIC --- >>>
         // Admin no-prefix users
-        const adminNoPrefixUsers = [...(config.adminBot || []), ...(config.developer || []), ...(config.whiteListMode?.whiteListIds || [])];
+        const adminNoPrefixUsers = [...(config.adminBot || []), ...(config.developer || []), ...(config.whitelist?.ids || [])];
 
         let command, commandName, args = [];
         const dateNow = Date.now();
@@ -120,9 +120,9 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         const needRole = roleConfig.onStart;
         if (needRole > role) {
             if (!hideNotiMessage.needRoleToUseCmd) {
-                if (needRole == 1) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyAdmin", commandName));
-                else if (needRole == 2) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyAdminBot2", commandName));
-                else if (needRole == 3) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyVipUser", commandName));
+                if (needRole == 1) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyBotAdmin", commandName));
+                else if (needRole == 2) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyBotAndGroupAdmin", commandName));
+                else if (needRole == 3) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyNDH", commandName));
                 else if (needRole == 4) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyDeveloper", commandName));
             } else return true;
         }

@@ -183,7 +183,15 @@ async function startBot() {
 	catch { log.error("LOGIN", "Invalid appstate.json format!"); process.exit(); }
 
 	log.info("LOGIN", "Logging in with FCA...");
-	login({ appState }, config.optionsFca, async (error, api) => {
+	const e2eeConfig = config.e2ee || {};
+	const fcaOptions = {
+		...config.optionsFca,
+		enableE2EE: e2eeConfig.enable === true,
+		e2eeMemoryOnly: e2eeConfig.saveType !== "path",
+		...(e2eeConfig.devicePath ? { e2eeDevicePath: e2eeConfig.devicePath } : {}),
+		...(e2eeConfig.deviceData ? { e2eeDeviceData: e2eeConfig.deviceData } : {})
+	};
+	login({ appState }, fcaOptions, async (error, api) => {
 		if (error) { log.err("LOGIN", "FCA Login Failed:", error); return process.exit(); }
 
 		global.GoatBot.fcaApi = api;

@@ -12,18 +12,24 @@ function getType(obj) {
 }
 
 function getRole(threadData, senderID) {
+    // Role system:
+    //   0 = all (everyone)
+    //   1 = bot admin only
+    //   2 = bot admin + group admin
+    //   3 = NDH — bot admin + group admin + whitelist users
+    //   4 = developer (highest)
     const config = global.GoatBot.config;
     const adminBot = config.adminBot || [];
     const developer = config.developer || [];
-    const vipuser = config.vipuser || [];
+    const ids = config.whitelist?.ids || [];
 
     if (!senderID) return 0;
-    const adminBox = threadData ? threadData.adminIDs || [] : [];
+    const adminBox = threadData ? (threadData.adminIDs || []) : [];
 
     if (developer.includes(senderID)) return 4;
-    if (adminBot.includes(senderID)) return 3;
-    if (vipuser.includes(senderID)) return 2;
-    if (adminBox.includes(senderID)) return 1;
+    if (adminBot.includes(senderID)) return 1; // bot admin → role 1
+    if (adminBox.includes(senderID)) return 2;  // group admin → role 2 (bot admin already returned above)
+    if (ids.includes(senderID)) return 3; // whitelist/NDH → role 3
     return 0;
 }
 
@@ -72,21 +78,21 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
     }
 
     // ——————————————— WHITELIST MODE ——————————————— //
-    // If whiteListMode is enabled, only whiteListIds (+ adminBot + developer)
-    // are allowed to use the bot. Commands listed in ignoreCommand are exempt
-    // and can be used by everyone even while whitelist is on.
-    // NOTE: blocked users get NO reply at all (fully silent) — the bot just
-    // ignores their command/trigger as if it never happened.
-    const wl = config.whiteListMode || {};
+    // whiteListMode on → only NDH users (role >= 3: ids, group admin,
+    // bot admin, developer) can use the bot. Commands in ignoreCommand are
+    // exempt and usable by everyone. Silent block — no reply to blocked users.
+    // Role mapping: 0=all, 1=botAdmin, 2=botAdmin+groupAdmin, 3=NDH(whitelist), 4=developer
+    // "NDH" means: bot admin + group admin + whitelisted users. Since role 1
+    // (botAdmin) and 2 (groupAdmin) are numerically LESS than 3, we check
+    // membership directly so bot/group admins are always allowed.
+    const wl = config.whitelist || {};
     if (wl.status === true) {
         const ignoredCmds = Array.isArray(wl.ignoreCommand) ? wl.ignoreCommand : [];
         if (!ignoredCmds.includes(commandName)) {
-            const allowed = [
-                ...(config.adminBot || []),
-                ...(config.developer || []),
-                ...(wl.whiteListIds || [])
-            ];
-            if (!allowed.includes(senderID)) {
+            const role = getRole(threadData, senderID);
+            // role 1 = botAdmin, 2 = groupAdmin, 3 = whitelistUser, 4 = developer — all allowed
+            // role 0 = regular user — blocked
+            if (role === 0) {
                 return true; // silent block — no message.reply
             }
         }
@@ -94,18 +100,18 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
     // ————————————————————————————————————————————— //
 
     // ——————————————— ADMIN ONLY MODE ——————————————— //
-    // If adminOnlyMode is enabled, only bot admins (config.adminBot /
-    // developer) plus group admins (threadData.adminIDs, when in a group)
-    // can use ANY command/prefix/onReply/onReaction — including things like
-    // baby.js, prefix.js, etc. Commands in ignoreCommand are still exempt.
-    // NOTE: blocked users get NO reply at all (fully silent).
-    const aom = config.adminOnlyMode || {};
+    // adminOnlyMode on → only bot admin + group admin (role 1 or 2 or 4)
+    // can use the bot. Whitelist users (role 3) are NOT included here —
+    // adminOnlyMode is stricter than whiteListMode.
+    // Commands in ignoreCommand are still exempt. Silent block.
+    const aom = config.adminOnly || {};
     if (aom.status === true) {
         const ignoredCmds = Array.isArray(aom.ignoreCommand) ? aom.ignoreCommand : [];
         if (!ignoredCmds.includes(commandName)) {
             const role = getRole(threadData, senderID);
-            // role >= 1 covers: group admin (1), vip (2), adminBot (3), developer (4)
-            if (role < 1) {
+            // Allow: botAdmin (1), groupAdmin (2), developer (4)
+            // Block: all (0) and whitelist-only users (3)
+            if (role !== 1 && role !== 2 && role !== 4) {
                 return true; // silent block — no message.reply
             }
         }

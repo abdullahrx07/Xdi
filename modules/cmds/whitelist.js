@@ -7,7 +7,7 @@ module.exports = {
         version: "1.0",
         author: "rX Abdullah",
         countDown: 3,
-        role: 3, // adminBot only
+        role: 1, // botAdmin only (new system: 0=all, 1=botAdmin, 2=botAdmin+groupAdmin, 3=NDH/whitelist, 4=developer)
         shortDescription: {
             en: "Whitelist mode — শুধু নির্দিষ্ট user-রা bot use করতে পারবে"
         },
@@ -56,8 +56,8 @@ module.exports = {
 
     onStart: async function ({ args, message, event, getLang }) {
         const { config } = global.GoatBot;
-        const wl = config.whiteListMode = config.whiteListMode || { status: false, whiteListIds: [], ignoreCommand: [] };
-        if (!Array.isArray(wl.whiteListIds)) wl.whiteListIds = [];
+        const wl = config.whitelist = config.whitelist || { status: false, ids: [], ignoreCommand: [] };
+        if (!Array.isArray(wl.ids)) wl.ids = [];
         if (!Array.isArray(wl.ignoreCommand)) wl.ignoreCommand = [];
 
         const save = () => writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
@@ -82,13 +82,13 @@ module.exports = {
         // ——— list ———
         if (sub === "list") {
             const statusText = wl.status ? "✅ চালু" : "❌ বন্ধ";
-            if (wl.whiteListIds.length === 0 && wl.ignoreCommand.length === 0) {
+            if (wl.ids.length === 0 && wl.ignoreCommand.length === 0) {
                 return message.reply(
                     getLang("listHeader", statusText, 0) + getLang("listEmpty")
                 );
             }
-            let text = getLang("listHeader", statusText, wl.whiteListIds.length);
-            wl.whiteListIds.forEach((uid, i) => {
+            let text = getLang("listHeader", statusText, wl.ids.length);
+            wl.ids.forEach((uid, i) => {
                 text += getLang("listItem", i + 1, uid);
             });
             if (wl.ignoreCommand.length > 0) {
@@ -102,8 +102,8 @@ module.exports = {
         if (sub === "add") {
             const uid = resolveUID(args.slice(1), event);
             if (!uid) return message.reply(getLang("noUID"));
-            if (wl.whiteListIds.includes(uid)) return message.reply(getLang("alreadyIn", uid));
-            wl.whiteListIds.push(uid);
+            if (wl.ids.includes(uid)) return message.reply(getLang("alreadyIn", uid));
+            wl.ids.push(uid);
             save();
             return message.reply(getLang("added", uid));
         }
@@ -112,9 +112,9 @@ module.exports = {
         if (sub === "remove" || sub === "rem" || sub === "rm") {
             const uid = resolveUID(args.slice(1), event);
             if (!uid) return message.reply(getLang("noUID"));
-            const idx = wl.whiteListIds.indexOf(uid);
+            const idx = wl.ids.indexOf(uid);
             if (idx === -1) return message.reply(getLang("notIn", uid));
-            wl.whiteListIds.splice(idx, 1);
+            wl.ids.splice(idx, 1);
             save();
             return message.reply(getLang("removed", uid));
         }

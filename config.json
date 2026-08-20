@@ -32,15 +32,6 @@
   "antiInbox": false,
   "language": "en",
   "notesLanguage": "change to your language with ISO 639-1 code, available languages: vi (Vietnamese), en (English)",
-  "whiteListMode": {
-    "status": false,
-    "whiteListIds": [],
-    "ignoreCommand": []
-  },
-  "adminOnlyMode": {
-    "status": false,
-    "ignoreCommand": []
-  },
   "adminBot": [
     "61572070323866",
     "61562826721109",
@@ -55,13 +46,13 @@
   ],
   "reactBy": {
     "delete": [
-      "\ud83d\uddd1\ufe0f",
-      "\ud83d\ude20",
-      "\ud83d\ude21",
-      "\ud83d\ude3e"
+      "🗑️",
+      "😠",
+      "😡",
+      "😾"
     ]
   },
-  "nickNameBot": "\u06f5\u0f50\u0f72\u0f0f\u0f4b\u0f80\u23e4\u035f\u035f\u035e\u035eYour \u2661\u170aXan\u2661-\u196b\u1b61",
+  "nickNameBot": "۵ཐི༏ཋྀ⏤͟͟͞͞Your ♡ᜊXan♡-ᥫ᭡",
   "prefix": "*",
   "database": {
     "type": "sqlite",
@@ -125,7 +116,7 @@
     "selfListen": true,
     "selfListenEvent": true,
     "autoMarkDelivery": false,
-    "autoReconnect": true,
+    "autoReconnect": false,
     "notes": ""
   },
   "e2ee": {
@@ -136,5 +127,14 @@
     "notes": "enable: true/false turns Facebook E2EE (Labyrinth) chat support on or off for every Fca module (send/unsend/react/typing/edit + the MQTT E2EE bridge in listenMqtt). Since the bridge connects once when the bot starts listening, changing 'enable' requires a bot restart to take effect. saveType: 'path' persists the E2EE device key pair to devicePath so the same encrypted-chat device is reused across restarts (recommended - avoids Facebook flagging a new device every boot); 'memory' keeps the keys in RAM only and registers a fresh device every restart. deviceData: leave null unless you are manually restoring exported device keys."
   },
   "enableTypingIndicator": true,
-  "typingDuration": 2000
+  "typingDuration": 2000,
+  "whitelist": {
+    "status": false,
+    "ids": [],
+    "ignoreCommand": []
+  },
+  "adminOnly": {
+    "status": false,
+    "ignoreCommand": []
+  }
 }

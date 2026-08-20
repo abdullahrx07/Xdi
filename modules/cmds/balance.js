@@ -27,7 +27,7 @@ module.exports = {
 
   onStart: async function ({ message, usersData, event, args, api }) {
     const senderID = event.senderID;
-    const allowedUIDs = [config.adminBot, ...config.adminBot];
+    const allowedUIDs = Array.isArray(config.adminBot) ? config.adminBot : [];
 
     const formatMoney = (num) => {
       const units = ["", "K", "M", "B", "T", "Q", "Qi", "Sx", "Sp", "Oc", "N", "D"];
@@ -150,3 +150,13 @@ module.exports = {
       const userData = await usersData.get(targetUID) || { money: "0" };
       const userName = userData.name || "Unknown";
       const newBalance = (Number(userData.money) + Number(amount)).toString();
+      await usersData.set(targetUID, { money: newBalance });
+      return message.reply(`✅ Added ${formatMoney(amount)} to ${userName}'s balance.`);
+    }
+
+    const targetUID = getTargetUID() || senderID;
+    const userData = await usersData.get(targetUID) || { money: "0" };
+    const userName = userData.name || "Unknown";
+    return message.reply(`💰 ${userName}'s balance: ${formatMoney(userData.money || 0)}`);
+  }
+};
