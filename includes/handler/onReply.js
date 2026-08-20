@@ -1,12 +1,12 @@
 // onReply.js
-const { getRoleConfig, createGetText2, buildContext } = require("./shared");
+const { getRoleConfig, createGetText2, buildContext, isAllowedByAccessMode } = require("./shared");
 
 module.exports = function (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) {
     return async function (event, message) {
         const ctx = await buildContext({ api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData, event, message });
         if (!ctx) return;
         const {
-            utils, log, removeHomeDir, getTime,
+            utils, log, removeHomeDir, getTime, config,
             threadData, userData, hideNotiMessage, prefix, role,
             parameters, langCode, createMessageSyntaxError,
             senderID, threadID, isGroup, body, messageID
@@ -14,6 +14,8 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         const { GoatBot } = global;
 
         // <<< --- onReply LOGIC --- >>>
+        // Global adminOnly / whitelist gate — silent skip for everyone else.
+        if (!isAllowedByAccessMode(config, undefined, threadID, isGroup, senderID)) return;
         if (!event.messageReply) return;
         const { onReply } = GoatBot;
         const Reply = onReply.get(event.messageReply.messageID);

@@ -37,9 +37,6 @@
     "61562826721109",
     "61581176666348"
   ],
-  "developer": [
-    "61572070323866"
-  ],
   "vipuser": [
     "61572070323866",
     "61557500431580"
@@ -131,7 +128,9 @@
   "whitelist": {
     "status": false,
     "ids": [],
-    "ignoreCommand": []
+    "ignoreCommand": [],
+    "threadStatus": false,
+    "threadIds": []
   },
   "adminOnly": {
     "status": false,

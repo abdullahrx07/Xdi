@@ -16,23 +16,112 @@ function getRole(threadData, senderID) {
     //   0 = all (everyone)
     //   1 = bot admin only
     //   2 = bot admin + group admin
-    //   3 = NDH — bot admin + group admin + whitelist users
-    //   4 = developer (highest)
+    //   3 = NDH — bot admin + group admin + whitelist users (highest)
     const config = global.GoatBot.config;
     const adminBot = config.adminBot || [];
-    const developer = config.developer || [];
     const ids = config.whitelist?.ids || [];
 
     if (!senderID) return 0;
     const adminBox = threadData ? (threadData.adminIDs || []) : [];
 
-    if (developer.includes(senderID)) return 4;
     if (adminBot.includes(senderID)) return 1; // bot admin → role 1
     if (adminBox.includes(senderID)) return 2;  // group admin → role 2 (bot admin already returned above)
     if (ids.includes(senderID)) return 3; // whitelist/NDH → role 3
     return 0;
 }
 
+
+/**
+ * Global access-mode gate — checked once per event, before ANY command,
+ * onChat/onFirstChat/onAnyEvent, event-command, or auto-trigger onEvent
+ * (welcome/leave/logsbot/checkwarn/autoUpdateInfoThread/etc.) is allowed
+ * to run.
+ *
+ *   adminOnly.status = true       -> only senderIDs directly listed in
+ *                                    config.adminBot may get ANY
+ *                                    response/trigger (senderID is
+ *                                    matched against config.adminBot
+ *                                    directly — an exact ID match, no
+ *                                    derived permission level involved).
+ *                                    Everyone else is skipped completely
+ *                                    and silently (no reply, no
+ *                                    auto-trigger event runs).
+ *   whitelist.status = true       -> only senderIDs directly listed in
+ *                                    config.adminBot or config.whitelist.ids
+ *                                    may get a response/trigger (same
+ *                                    direct ID-match approach as
+ *                                    adminOnly above). Everyone else is
+ *                                    skipped completely and silently.
+ *   whitelist.threadStatus = true -> the bot only responds/triggers inside
+ *                                    group threads whose threadID is listed
+ *                                    in config.whitelist.threadIds (E2EE
+ *                                    group JIDs like "12345@g.us" work the
+ *                                    same as classic numeric thread IDs —
+ *                                    it's a plain string match either way).
+ *                                    Any group thread NOT in that list is
+ *                                    skipped completely and silently for
+ *                                    everyone except bot admins (see below).
+ *                                    1-1 DMs are unaffected by this (it
+ *                                    only gates group threads).
+ *
+ * If both adminOnly and whitelist are enabled, adminOnly wins (stricter
+ * of the two). A sender whose ID is directly listed in config.adminBot
+ * always passes every check here — matched against config.adminBot
+ * directly by senderID, not via any derived permission level, so this
+ * can never be affected by role 2 (group admin) or any other
+ * role-resolution detail. The bot's own admins must always be able to
+ * reach the bot (e.g. to run `whitelist threadadd` inside a group that
+ * isn't whitelisted yet, or to turn a mode back off) and must never be
+ * able to lock themselves out.
+ *
+ * ignoreCommand (on either adminOnly or whitelist) lets specific command
+ * names stay open to everyone even while the mode is on — e.g. so a
+ * "whitelist off" or "adminOnly off" escape hatch command, or a public
+ * "help"/"ping", can still be reached. commandName is optional: pass it
+ * when checking a specific command (onStart/onChat/onReply/onReaction);
+ * leave it undefined for the fully generic auto-trigger events (onEvent/
+ * eventCommands/onAnyEvent/onFirstChat), which have no single command
+ * name to exempt. The whitelist command itself is always implicitly
+ * exempt from the thread gate (see check below) so a bot admin can
+ * never get locked out of managing thread whitelist from inside the
+ * very group they're trying to add/remove.
+ */
+function isAllowedByAccessMode(config, commandName, threadID, isGroup, senderID) {
+    const adminOnly = config.adminOnly || {};
+    const whitelist = config.whitelist || {};
+    const adminBot = Array.isArray(config.adminBot) ? config.adminBot : [];
+
+    // Direct senderID <-> config.adminBot match — this is the actual
+    // source of truth for "is this a bot admin", not any derived
+    // permission level.
+    const isBotAdmin = !!senderID && adminBot.includes(senderID);
+    if (isBotAdmin) return true; // bot admin always passes every check here
+
+    if (isGroup && whitelist.threadStatus === true) {
+        const threadIds = Array.isArray(whitelist.threadIds) ? whitelist.threadIds : [];
+        if (!threadID || !threadIds.includes(String(threadID))) return false;
+    }
+
+    if (adminOnly.status === true) {
+        const ignoreCommand = Array.isArray(adminOnly.ignoreCommand) ? adminOnly.ignoreCommand : [];
+        if (commandName && ignoreCommand.includes(commandName)) return true;
+        return false;
+    }
+
+    if (whitelist.status === true) {
+        const ignoreCommand = Array.isArray(whitelist.ignoreCommand) ? whitelist.ignoreCommand : [];
+        if (commandName && ignoreCommand.includes(commandName)) return true;
+        // Direct senderID <-> config.whitelist.ids match — same pattern as
+        // the bot-admin check above: an exact ID match, not any derived
+        // permission level.
+        const whitelistIds = Array.isArray(whitelist.ids) ? whitelist.ids : [];
+        const isWhitelistedUser = !!senderID && whitelistIds.includes(senderID);
+        if (isWhitelistedUser) return true;
+        return false;
+    }
+
+    return true; // neither mode is on -> normal role checks apply as before
+}
 
 function replaceShortcutInLang(text, prefix, commandName) {
     return text
@@ -215,6 +304,7 @@ module.exports = {
     nullAndUndefined,
     getType,
     getRole,
+    isAllowedByAccessMode,
     replaceShortcutInLang,
     getRoleConfig,
     createGetText2,

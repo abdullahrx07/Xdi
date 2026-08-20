@@ -1,18 +1,26 @@
 // onEvent.js
-const { getType, getRoleConfig, createGetText2, buildContext } = require("./shared");
+const { getType, getRoleConfig, createGetText2, buildContext, isAllowedByAccessMode } = require("./shared");
 
 module.exports = function (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) {
     return async function (event, message) {
         const ctx = await buildContext({ api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData, event, message });
         if (!ctx) return;
         const {
-            utils, log, removeHomeDir, getTime,
+            utils, log, removeHomeDir, getTime, config,
             threadData, userData, role,
             parameters, langCode, createMessageSyntaxError,
             senderID, threadID, isGroup, body, prefix
         } = ctx;
         const { GoatBot } = global;
         const { author } = event;
+
+        // Global adminOnly / whitelist gate — when either mode is on, every
+        // auto-trigger in this file (onAnyEvent, onFirstChat, onChat,
+        // eventCommands, and onEvent — i.e. welcome/leave/logsbot/checkwarn/
+        // autoUpdateInfoThread/etc.) is silently skipped for everyone except
+        // bot admins (+ whitelist users, when only whitelist mode is on).
+        // Nothing is sent back to non-admin/non-whitelisted users.
+        if (!isAllowedByAccessMode(config, undefined, threadID, isGroup, senderID)) return;
 
         // এখানে যোগ করা হয়েছে → এরর ফিক্স
         let isUserCallCommand = false;

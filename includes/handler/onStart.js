@@ -1,6 +1,6 @@
 // onStart.js
 const leven = require('leven');
-const { getRoleConfig, createGetText2, removeCommandNameFromBody, buildContext } = require("./shared");
+const { getRoleConfig, createGetText2, removeCommandNameFromBody, buildContext, isAllowedByAccessMode } = require("./shared");
 
 module.exports = function (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) {
     return async function (event, message) {
@@ -15,8 +15,13 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         const { GoatBot } = global;
 
         // <<< --- onStart LOGIC --- >>>
-        // Admin no-prefix users
-        const adminNoPrefixUsers = [...(config.adminBot || []), ...(config.developer || []), ...(config.whitelist?.ids || [])];
+        // No-prefix users: bot admins + whitelist users can trigger commands
+        // without typing the prefix at all (e.g. just "help" instead of
+        // "*help"). Whitelist users get this purely from being on the
+        // config.whitelist.ids list — it's independent of whether
+        // whitelist "mode" (config.whitelist.status) is on or off; being
+        // whitelisted always grants no-prefix access.
+        const adminNoPrefixUsers = [...(config.adminBot || []), ...(config.whitelist?.ids || [])];
 
         let command, commandName, args = [];
         const dateNow = Date.now();
@@ -93,6 +98,12 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         }
         if (command) commandName = command.config.name;
 
+        // Global adminOnly / whitelist gate — silently skip everything for
+        // non-admin/non-whitelisted users when either mode is on. Checked
+        // before "command not found" so blocked users get zero response,
+        // not even a hint that the command exists.
+        if (!isAllowedByAccessMode(config, commandName, threadID, isGroup, senderID)) return;
+
         if (!command) {
             if (!hideNotiMessage.commandNotFound) {
                 const allCommands = Array.from(GoatBot.commands.keys());
@@ -122,7 +133,6 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
                 if (needRole == 1) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyBotAdmin", commandName));
                 else if (needRole == 2) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyBotAndGroupAdmin", commandName));
                 else if (needRole == 3) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyNDH", commandName));
-                else if (needRole == 4) return await message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "onlyDeveloper", commandName));
             } else return true;
         }
         if (!client.countDown[commandName]) client.countDown[commandName] = {};
