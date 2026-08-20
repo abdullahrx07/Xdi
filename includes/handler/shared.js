@@ -100,20 +100,18 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
     // ————————————————————————————————————————————— //
 
     // ——————————————— ADMIN ONLY MODE ——————————————— //
-    // adminOnly on → ONLY bot admin (senderID is in config.adminBot, role 1)
-    // may use the bot. Group admins, developer, and whitelist users are all
-    // blocked too — this mode is meant to be the strictest lockdown, not
-    // "admin-and-friends". If a developer also needs access while this is
-    // on, add their ID to config.adminBot.
+    // adminOnly on → ONLY bot admin (senderID is in config.adminBot or config.developer)
+    // may use the bot. Group admins, whitelist users, and regular users are all
+    // blocked — this mode is meant to be the strictest lockdown.
     // Commands in ignoreCommand are still exempt. Silent block.
     const aom = config.adminOnly || {};
     if (aom.status === true) {
         const ignoredCmds = Array.isArray(aom.ignoreCommand) ? aom.ignoreCommand : [];
         if (!ignoredCmds.includes(commandName)) {
-            const role = getRole(threadData, senderID);
-            // Allow: botAdmin (1) ONLY
-            // Block: everyone else — all (0), groupAdmin (2), whitelist (3), developer (4)
-            if (role !== 1) {
+            const adminBot = (config.adminBot || []).map(String);
+            const developer = (config.developer || []).map(String);
+            const isBotAdmin = adminBot.includes(String(senderID)) || developer.includes(String(senderID));
+            if (!isBotAdmin) {
                 return true; // silent block — no message.reply
             }
         }

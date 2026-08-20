@@ -26,6 +26,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             const command = GoatBot.commands.get(key);
             if (!command) continue;
             const commandName = command.config.name;
+            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             const time = getTime("DD/MM/YYYY HH:mm:ss");
             createMessageSyntaxError(commandName);
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/events/${langCode}.js`, prefix, command);
@@ -117,6 +118,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             const getEvent = GoatBot.eventCommands.get(key);
             if (!getEvent) continue;
             const commandName = getEvent.config.name;
+            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/events/${langCode}.js`, prefix, getEvent);
             const time = getTime("DD/MM/YYYY HH:mm:ss");
             try {
@@ -139,6 +141,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             const command = GoatBot.commands.get(key);
             if (!command) continue;
             const commandName = command.config.name;
+            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             const time = getTime("DD/MM/YYYY HH:mm:ss");
             createMessageSyntaxError(commandName);
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/events/${langCode}.js`, prefix, command);
