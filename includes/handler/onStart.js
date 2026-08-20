@@ -1,6 +1,6 @@
 // onStart.js
 const leven = require('leven');
-const { getRoleConfig, isBannedOrOnlyAdmin, createGetText2, removeCommandNameFromBody, buildContext } = require("./shared");
+const { getRoleConfig, createGetText2, removeCommandNameFromBody, buildContext } = require("./shared");
 
 module.exports = function (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) {
     return async function (event, message) {
@@ -93,7 +93,6 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         }
         if (command) commandName = command.config.name;
 
-        if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) return;
         if (!command) {
             if (!hideNotiMessage.commandNotFound) {
                 const allCommands = Array.from(GoatBot.commands.keys());

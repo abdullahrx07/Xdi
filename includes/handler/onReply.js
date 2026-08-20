@@ -1,5 +1,5 @@
 // onReply.js
-const { getRoleConfig, isBannedOrOnlyAdmin, createGetText2, buildContext } = require("./shared");
+const { getRoleConfig, createGetText2, buildContext } = require("./shared");
 
 module.exports = function (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) {
     return async function (event, message) {
@@ -29,15 +29,12 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "cannotFindCommand", commandName));
             return log.err("onReply", `Command "${commandName}" not found`, Reply);
         }
-        // Ban / whiteListMode / adminOnlyMode gating for reply-triggered
-        // commands is handled by isBannedOrOnlyAdmin() below (silent block).
         const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
         const time = getTime("DD/MM/YYYY HH:mm:ss");
         try {
             if (!command) throw new Error(`Cannot find command with commandName: ${commandName}`);
             const args = body ? body.split(/ +/) : [];
             createMessageSyntaxError(commandName);
-            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) return;
             await command.onReply({ ...parameters, Reply, args, commandName, getLang: getText2 });
             log.info("onReply", `${commandName} | ${userData?.name || "Unknown"} | ${senderID} | ${threadID} | ${args.join(" ")}`);
         } catch (err) {

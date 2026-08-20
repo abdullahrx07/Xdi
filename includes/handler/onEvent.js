@@ -1,5 +1,5 @@
 // onEvent.js
-const { getType, getRoleConfig, isBannedOrOnlyAdmin, createGetText2, buildContext } = require("./shared");
+const { getType, getRoleConfig, createGetText2, buildContext } = require("./shared");
 
 module.exports = function (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) {
     return async function (event, message) {
@@ -56,7 +56,6 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             if (threadIDsChattedFirstTime.includes(threadID)) continue;
             const command = GoatBot.commands.get(commandName);
             if (!command) continue;
-            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             itemOnFirstChat.threadIDsChattedFirstTime.push(threadID);
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
             const time = getTime("DD/MM/YYYY HH:mm:ss");
@@ -89,7 +88,6 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
             const needRole = roleConfig.onChat;
             if (needRole > role) continue;
-            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
             const time = getTime("DD/MM/YYYY HH:mm:ss");
             createMessageSyntaxError(commandName);

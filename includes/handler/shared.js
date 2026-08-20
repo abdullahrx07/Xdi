@@ -33,11 +33,6 @@ function getRole(threadData, senderID) {
     return 0;
 }
 
-function getBanText(type, reason, time, targetID, lang) {
-    const utils = global.utils;
-    if (type == "userBanned") return utils.getText({ lang, head: "handlerOnStart" }, "userBanned", reason, time, targetID);
-    else if (type == "threadBanned") return utils.getText({ lang, head: "handlerOnStart" }, "threadBanned", reason, time, targetID);
-}
 
 function replaceShortcutInLang(text, prefix, commandName) {
     return text
@@ -64,71 +59,6 @@ function getRoleConfig(utils, command, isGroup, threadData, commandName) {
     }
 
     return roleConfig;
-}
-
-function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, lang) {
-    const config = global.GoatBot.config;
-    const { hideNotiMessage } = config;
-
-    const infoBannedUser = userData?.banned || {};
-    if (infoBannedUser.status == true) {
-        const { reason, date } = infoBannedUser;
-        if (hideNotiMessage.userBanned == false) message.reply(getBanText("userBanned", reason, date, senderID, lang));
-        return true;
-    }
-
-    // ——————————————— WHITELIST MODE ——————————————— //
-    // whiteListMode on → only NDH users (role >= 3: ids, group admin,
-    // bot admin, developer) can use the bot. Commands in ignoreCommand are
-    // exempt and usable by everyone. Silent block — no reply to blocked users.
-    // Role mapping: 0=all, 1=botAdmin, 2=botAdmin+groupAdmin, 3=NDH(whitelist), 4=developer
-    // "NDH" means: bot admin + group admin + whitelisted users. Since role 1
-    // (botAdmin) and 2 (groupAdmin) are numerically LESS than 3, we check
-    // membership directly so bot/group admins are always allowed.
-    const wl = config.whitelist || {};
-    if (wl.status === true) {
-        const ignoredCmds = Array.isArray(wl.ignoreCommand) ? wl.ignoreCommand : [];
-        if (!ignoredCmds.includes(commandName)) {
-            const role = getRole(threadData, senderID);
-            // role 1 = botAdmin, 2 = groupAdmin, 3 = whitelistUser, 4 = developer — all allowed
-            // role 0 = regular user — blocked
-            if (role === 0) {
-                return true; // silent block — no message.reply
-            }
-        }
-    }
-    // ————————————————————————————————————————————— //
-
-    // ——————————————— ADMIN ONLY MODE ——————————————— //
-    // adminOnly on → ONLY bot admin (senderID is in config.adminBot, role 1)
-    // may use the bot. Group admins, developer, and whitelist users are all
-    // blocked too — this mode is meant to be the strictest lockdown, not
-    // "admin-and-friends". If a developer also needs access while this is
-    // on, add their ID to config.adminBot.
-    // Commands in ignoreCommand are still exempt. Silent block.
-    const aom = config.adminOnly || {};
-    if (aom.status === true) {
-        const ignoredCmds = Array.isArray(aom.ignoreCommand) ? aom.ignoreCommand : [];
-        if (!ignoredCmds.includes(commandName)) {
-            const role = getRole(threadData, senderID);
-            // Allow: botAdmin (1) ONLY
-            // Block: everyone else — all (0), groupAdmin (2), whitelist (3), developer (4)
-            if (role !== 1) {
-                return true; // silent block — no message.reply
-            }
-        }
-    }
-    // ————————————————————————————————————————————— //
-
-    if (isGroup == true && threadData) {
-        const infoBannedThread = threadData.banned;
-        if (infoBannedThread.status == true) {
-            const { reason, date } = infoBannedThread;
-            if (hideNotiMessage.threadBanned == false) message.reply(getBanText("threadBanned", reason, date, threadID, lang));
-            return true;
-        }
-    }
-    return false;
 }
 
 function createGetText2(langCode, pathCustomLang, prefix, command) {
@@ -285,10 +215,8 @@ module.exports = {
     nullAndUndefined,
     getType,
     getRole,
-    getBanText,
     replaceShortcutInLang,
     getRoleConfig,
-    isBannedOrOnlyAdmin,
     createGetText2,
     removeCommandNameFromBody,
     buildContext
