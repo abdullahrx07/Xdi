@@ -193,13 +193,17 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 					});
 				}
 				threadInfo = threadInfo || await api.getThreadInfo(threadID);
-				const { threadName, userInfo, adminIDs } = threadInfo;
-				const newAdminsIDs = adminIDs.reduce(function (_, b) {
+				// adminIDs/userInfo can legitimately come back null for a 1-1 DM
+				// (no "admins" or full participant list concept on some code
+				// paths) — default to [] so a DM thread never fails to create
+				// just because a group-only field wasn't populated.
+				const { threadName, userInfo = [], adminIDs = [] } = threadInfo;
+				const newAdminsIDs = (adminIDs || []).reduce(function (_, b) {
 					_.push(b.id);
 					return _;
 				}, []);
 
-				const newMembers = userInfo.reduce(function (arr, user) {
+				const newMembers = (userInfo || []).reduce(function (arr, user) {
 					const userID = user.id;
 					arr.push({
 						userID,
@@ -270,10 +274,12 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 					}
 					const threadInfo = await get_(threadID);
 					newThreadInfo = newThreadInfo || await api.getThreadInfo(threadID);
-					const { userInfo, adminIDs, nicknames } = newThreadInfo;
+					// Same null-guard as create_(): a 1-1 DM thread can come back
+					// with no adminIDs/nicknames — don't let that crash a refresh.
+					const { userInfo = [], adminIDs = [], nicknames = {} } = newThreadInfo;
 					let oldMembers = threadInfo.members;
 					const newMembers = [];
-					for (const user of userInfo) {
+					for (const user of (userInfo || [])) {
 						const userID = user.id;
 						const indexUser = _.findIndex(oldMembers, { userID });
 						const oldDataUser = oldMembers[indexUser] || {};
@@ -294,7 +300,7 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 						user.inGroup = false;
 						return user;
 					});
-					const newAdminsIDs = adminIDs.reduce(function (acc, cur) {
+					const newAdminsIDs = (adminIDs || []).reduce(function (acc, cur) {
 						acc.push(cur.id);
 						return acc;
 					}, []);

@@ -223,7 +223,25 @@ async function startBot() {
 			const chatJid = String(event.e2ee.chatJid);
 			if (!/@msgr$/i.test(chatJid)) return event;
 			const numericID = chatJid.slice(0, -5).split(":")[0];
-			if (/^\d+$/.test(numericID)) event.threadID = numericID;
+			// Keep the "@msgr" suffix — only strip the per-device ":69" part.
+			// This still collapses multiple device JIDs for the same 1-1 DM
+			// down to one canonical threadID ("<id>@msgr", same convention
+			// inbox.js already uses to target an E2EE DM), so thread data
+			// doesn't fragment across sessions.
+			//
+			// Previously this rewrote threadID down to the *bare* numeric ID
+			// (no "@"). Every E2EE-aware routing check downstream —
+			// isE2EEChatJid() in e2ee.js, used by api.sendMessage,
+			// api.markAsRead, and the api.getThreadInfo override — decides
+			// "is this an E2EE thread?" purely by checking for "@" in the
+			// threadID. Stripping it made every reply/command run in a 1-1
+			// E2EE DM fall through to the *normal* (non-E2EE) Messenger send
+			// path, which can't talk to a Labyrinth-encrypted chat — so the
+			// bot went silent in DMs while E2EE group JIDs (which use a
+			// different suffix like "@group.facebook.com" and never matched
+			// this function's `@msgr` check) were never touched and kept
+			// working.
+			if (/^\d+$/.test(numericID)) event.threadID = numericID + "@msgr";
 			return event;
 		}
 
