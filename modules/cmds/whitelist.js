@@ -9,68 +9,66 @@ module.exports = {
         countDown: 3,
         role: 1, // botAdmin only (new system: 0=all, 1=botAdmin, 2=botAdmin+groupAdmin, 3=NDH/whitelist)
         shortDescription: {
-            en: "Whitelist mode — শুধু নির্দিষ্ট user-রা bot use করতে পারবে"
+            en: "Only whitelisted users can use the bot"
         },
         longDescription: {
-            en: "Whitelist mode on/off করো, user add/remove করো, list দেখো। Whitelist on থাকলে শুধু listed user + adminBot bot use করতে পারবে। থ্রেড-হোয়াইটলিস্ট: থ্রেড-হোয়াইটলিস্ট on থাকলে শুধু listed group thread-এ bot চলবে (E2EE group JID যেমন xxxx@g.us ধরেও কাজ করে)।"
+            en: "Turn whitelist mode on/off, add/remove users, view the list. When on, only listed users plus adminBot can use the bot. Thread whitelist: when on, the bot only runs in listed group threads (also works with E2EE group JIDs like xxxx@g.us)."
         },
         category: "admin",
         guide: {
             en:
-`🛡️ Whitelist Command:
-
-— User whitelist —
-{pn} on          — whitelist mode চালু
-{pn} off         — whitelist mode বন্ধ
-{pn} add <uid>   — whitelist-এ user যোগ (reply বা uid দিয়ে)
-{pn} remove <uid>— whitelist থেকে user সরাও
-{pn} list        — whitelist-এ কে কে আছে দেখো
-{pn} ignore <cmd>— একটা command কে whitelist থেকে exempt করো
-{pn} unignore <cmd> — exempt সরাও
+`— User whitelist —
+{pn} on          - turn whitelist mode on
+{pn} off         - turn whitelist mode off
+{pn} add <uid>   - add a user to the whitelist (reply or give uid)
+{pn} remove <uid>- remove a user from the whitelist
+{pn} list        - show who is on the whitelist
+{pn} ignore <cmd>- let a command work for everyone
+{pn} unignore <cmd> - remove that exemption
 
 — Thread whitelist (group) —
-{pn} threadon           — শুধু whitelisted thread-এ bot চালু (mode on)
-{pn} threadoff          — thread-whitelist mode বন্ধ (সব group-এ চলবে)
-{pn} threadadd [tid]    — current thread (বা দেওয়া tid) whitelist-এ যোগ
-{pn} threadremove [tid] — current thread (বা দেওয়া tid) whitelist থেকে বাদ
-{pn} threadlist         — whitelisted thread-দের list দেখো`
+{pn} threadon           - only whitelisted threads can use the bot
+{pn} threadoff          - turn off thread whitelist (all groups work)
+{pn} threadadd [tid]    - add current thread (or given tid) to whitelist
+{pn} threadremove [tid] - remove current thread (or given tid) from whitelist
+{pn} threadlist         - show whitelisted threads`
         }
     },
 
     langs: {
         en: {
-            on: "✅ Whitelist mode চালু হয়েছে। এখন থেকে শুধু whitelist user-রা bot use করতে পারবে।",
-            off: "🔓 Whitelist mode বন্ধ হয়েছে। সবাই bot use করতে পারবে।",
-            alreadyOn: "⚠️ Whitelist mode এখনই চালু আছে।",
-            alreadyOff: "⚠️ Whitelist mode এখনই বন্ধ আছে।",
-            added: "✅ %1 কে whitelist-এ যোগ করা হয়েছে।",
-            alreadyIn: "⚠️ %1 আগে থেকেই whitelist-এ আছে।",
-            removed: "🗑️ %1 কে whitelist থেকে সরানো হয়েছে।",
-            notIn: "⚠️ %1 whitelist-এ নেই।",
-            listEmpty: "📋 Whitelist এখন খালি।",
-            listHeader: "🛡️ Whitelist Mode: %1\n📋 Whitelist Users (%2 জন):\n",
+            on: "Whitelist mode is now on. Only whitelisted users can use the bot.",
+            off: "Whitelist mode is now off. Everyone can use the bot.",
+            alreadyOn: "Whitelist mode is already on.",
+            alreadyOff: "Whitelist mode is already off.",
+            added: "%1 added to the whitelist.",
+            alreadyIn: "%1 is already on the whitelist.",
+            removed: "%1 removed from the whitelist.",
+            notIn: "%1 is not on the whitelist.",
+            listEmpty: "Whitelist is empty.",
+            listHeader: "Whitelist Mode: %1\nWhitelist Users (%2):\n",
             listItem: "  %1. %2\n",
-            ignoredHeader: "\n🚫 Ignore Commands (সবার জন্য open):\n",
-            ignoredItem: "  • %1\n",
-            noUID: "❌ কোনো UID বা mention দাও।",
-            ignoreCmdAdded: "✅ '%1' command-টি whitelist থেকে exempt করা হয়েছে।",
-            ignoreCmdExists: "⚠️ '%1' আগে থেকেই ignore list-এ আছে।",
-            ignoreCmdRemoved: "🗑️ '%1' ignore list থেকে সরানো হয়েছে।",
-            ignoreCmdNotIn: "⚠️ '%1' ignore list-এ নেই।",
-            unknownSub: "❌ অজানা subcommand। {pn} help দেখো।",
-            noCmd: "❌ কোনো command name দাও।",
+            ignoredHeader: "\nIgnore Commands:\n",
+            ignoredItem: "  - %1\n",
+            noUID: "Please give a UID or mention someone.",
+            ignoreCmdAdded: "'%1' is now exempt from whitelist.",
+            ignoreCmdExists: "'%1' is already in the ignore list.",
+            ignoreCmdRemoved: "'%1' removed from the ignore list.",
+            ignoreCmdNotIn: "'%1' is not in the ignore list.",
+            unknownSub: "Unknown subcommand. See {pn} help.",
+            noCmd: "Please give a command name.",
 
-            threadOn: "✅ Thread-whitelist mode চালু হয়েছে। এখন থেকে শুধু whitelisted group-এ bot চলবে।",
-            threadOff: "🔓 Thread-whitelist mode বন্ধ হয়েছে। এখন সব group-এ bot চলবে।",
-            threadAlreadyOn: "⚠️ Thread-whitelist mode এখনই চালু আছে।",
-            threadAlreadyOff: "⚠️ Thread-whitelist mode এখনই বন্ধ আছে।",
-            threadNotGroup: "❌ এটা group thread না, শুধু group thread whitelist-এ add/remove করা যায়।",
-            threadAdded: "✅ থ্রেড %1 কে whitelist-এ যোগ করা হয়েছে।",
-            threadAlreadyIn: "⚠️ থ্রেড %1 আগে থেকেই whitelist-এ আছে।",
-            threadRemoved: "🗑️ থ্রেড %1 কে whitelist থেকে সরানো হয়েছে।",
-            threadNotIn: "⚠️ থ্রেড %1 whitelist-এ নেই।",
-            threadListEmpty: "📋 Thread-whitelist এখন খালি।",
-            threadListHeader: "🛡️ Thread-Whitelist Mode: %1\n📋 Whitelisted Threads (%2 টা):\n",
+            threadOn: "Thread whitelist mode is now on. Only whitelisted groups can use the bot.",
+            threadOff: "Thread whitelist mode is now off. The bot works in all groups.",
+            threadAlreadyOn: "Thread whitelist mode is already on.",
+            threadAlreadyOff: "Thread whitelist mode is already off.",
+            threadNotGroup: "This isn't a group thread. Only group threads can be added/removed.",
+            threadAdded: "Thread %1 added to the whitelist.",
+            threadAlreadyIn: "Thread %1 is already on the whitelist.",
+            threadRemoved: "Thread %1 removed from the whitelist.",
+            threadNotIn: "Thread %1 is not on the whitelist.",
+            threadListEmpty: "Thread whitelist is empty.",
+            threadListHeader: "Thread Whitelist Mode: %1\nWhitelisted Threads (%2):\n",
             threadListItem: "  %1. %2\n"
         }
     },
@@ -141,7 +139,7 @@ module.exports = {
 
         // ——— threadlist ———
         if (sub === "threadlist") {
-            const statusText = wl.threadStatus ? "✅ চালু" : "❌ বন্ধ";
+            const statusText = wl.threadStatus ? "ON" : "OFF";
             if (wl.threadIds.length === 0) {
                 return message.reply(
                     getLang("threadListHeader", statusText, 0) + getLang("threadListEmpty")
@@ -156,7 +154,7 @@ module.exports = {
 
         // ——— list ———
         if (sub === "list") {
-            const statusText = wl.status ? "✅ চালু" : "❌ বন্ধ";
+            const statusText = wl.status ? "ON" : "OFF";
             if (wl.ids.length === 0 && wl.ignoreCommand.length === 0) {
                 return message.reply(
                     getLang("listHeader", statusText, 0) + getLang("listEmpty")
