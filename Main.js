@@ -218,8 +218,18 @@ async function startBot() {
 		await require("./includes/custom.js")({ api, threadsData, usersData, globalData, getText });
 		await require("./includes/rX/loadScripts.js")(api, threadModel, userModel, dashBoardModel, globalModel, threadsData, usersData, dashBoardData, globalData, c => c);
 
+		function normalizeE2EEThreadID(event) {
+			if (!event?.isE2EE || !event.e2ee?.chatJid) return event;
+			const chatJid = String(event.e2ee.chatJid);
+			if (!/@msgr$/i.test(chatJid)) return event;
+			const numericID = chatJid.slice(0, -5).split(":")[0];
+			if (/^\d+$/.test(numericID)) event.threadID = numericID;
+			return event;
+		}
+
 		function callBackListen(err, event) {
 			if (err) { log.err("LISTEN", "Connection Error, attempting restart..."); return setTimeout(() => startBot(), 5000); }
+			normalizeE2EEThreadID(event);
 
 			const handlerAction = require("./includes/listen.js")(
 				api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData
