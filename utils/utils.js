@@ -349,22 +349,18 @@ function jsonStringifyColor(obj, filter, indent, level) {
 
 
 function message(api, event) {
-	const targetThreadID = event.isE2EE && event.e2ee?.chatJid
-		? event.e2ee.chatJid
-		: event.threadID;
-
 	async function sendMessageError(err) {
 		if (typeof err === "object" && !err.stack)
 			err = utils.removeHomeDir(JSON.stringify(err, null, 2));
 		else
 			err = utils.removeHomeDir(`${err.name || err.error}: ${err.message}`);
-		return await api.sendMessage(utils.getText("utils", "errorOccurred", err), targetThreadID, event.messageID);
+		return await api.sendMessage(utils.getText("utils", "errorOccurred", err), event.threadID, event.messageID);
 	}
 	return {
 		send: async (form, callback) => {
 			try {
 				global.statusAccountBot = 'good';
-				return await api.sendMessage(form, targetThreadID, callback);
+				return await api.sendMessage(form, event.threadID, callback);
 			}
 			catch (err) {
 				if (JSON.stringify(err).includes('spam')) {
@@ -376,7 +372,7 @@ function message(api, event) {
 		reply: async (form, callback) => {
 			try {
 				global.statusAccountBot = 'good';
-				return await api.sendMessage(form, targetThreadID, callback, event.messageID);
+				return await api.sendMessage(form, event.threadID, callback, event.messageID);
 			}
 			catch (err) {
 				if (JSON.stringify(err).includes('spam')) {

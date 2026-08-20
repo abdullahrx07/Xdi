@@ -148,7 +148,14 @@ module.exports = (
 
 		const message = createFuncMessage(api, event);
 
-		await handlerCheckDB(usersData, threadsData, event);
+		// The E2EE bridge uses @msgr/@g.us JIDs, and those threads cannot always
+		// be resolved by the normal pre-flight database lookup.  That lookup
+		// records a temporary failure and makes buildContext skip the message,
+		// which is why inbox commands appeared dead while E2EE groups worked.
+		// Let the handler's E2EE-aware buildContext resolve/create the thread.
+		if (!event.isE2EE) {
+			await handlerCheckDB(usersData, threadsData, event);
+		}
 
 		const onStartObj = await onStart(event, message);
 		const onReactionObj = await onReaction(event, message);

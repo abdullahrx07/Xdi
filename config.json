@@ -1,6 +1,6 @@
 {
   "gitUpdate": {
-    "autoUpdate": false,
+    "autoUpdate": true,
     "cmdUpdate": false,
     "url": "https://github.com/abdullahrx07/MARI-GBOT.git",
     "branch": "main",
@@ -116,7 +116,7 @@
     "selfListen": true,
     "selfListenEvent": true,
     "autoMarkDelivery": false,
-    "autoReconnect": true,
+    "autoReconnect": false,
     "notes": ""
   },
   "e2ee": {
