@@ -176,7 +176,9 @@ async function buildContext({ api, threadModel, userModel, dashBoardModel, globa
     let threadData = global.db.allThreadData.find(t => t.threadID == threadID);
     let userData = global.db.allUserData.find(u => u.userID == senderID);
 
-    const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+    // Accept numeric IDs, @-JIDs (standard Messenger), and any non-empty string
+    // for E2EE group JIDs that don't match the numeric or @-suffix patterns.
+    const isValidID = id => typeof id === 'string' ? id.trim().length > 0 : !isNaN(id);
 
     if (!userData && isValidID(senderID)) userData = await usersData.create(senderID);
 

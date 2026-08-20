@@ -124,10 +124,18 @@ module.exports = (
 			const knownThreadData = event.threadID
 				? global.db.allThreadData.find(t => t.threadID == event.threadID)
 				: null;
-			const resolvedIsGroupForAntiInbox = knownThreadData && typeof knownThreadData.isGroup === "boolean"
-				? knownThreadData.isGroup
-				: event.isGroup;
-			if (!resolvedIsGroupForAntiInbox) return;
+			// For E2EE events where the thread is not yet in DB, we can't trust
+			// event.isGroup (it's a JID-suffix guess). Allow it through so
+			// buildContext can resolve the real isGroup from getThreadInfo.
+			// Once threadData exists, future events use the trusted DB value.
+			if (event.isE2EE && !knownThreadData) {
+				// pass through — let buildContext determine the real group status
+			} else {
+				const resolvedIsGroupForAntiInbox = knownThreadData && typeof knownThreadData.isGroup === "boolean"
+					? knownThreadData.isGroup
+					: event.isGroup;
+				if (!resolvedIsGroupForAntiInbox) return;
+			}
 		}
 
 		// Only these event types ever need onStart/onReply/onReaction/onEvent's
