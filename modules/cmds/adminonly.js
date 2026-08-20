@@ -12,7 +12,7 @@ module.exports = {
             en: "Admin Only Mode — শুধু bot admin/group admin bot use করতে পারবে"
         },
         longDescription: {
-            en: "Admin Only mode on/off করো। চালু থাকলে group-এ শুধু group admin + adminBot, আর DM-এ শুধু adminBot/developer bot-এর সব command (prefix, no-prefix, baby, onReply, onReaction — সব) use করতে পারবে।"
+            en: "Admin Only mode on/off করো। চালু থাকলে group বা DM যেকোনো জায়গায় শুধু config.adminBot-এ থাকা UID (bot admin)-রাই bot-এর সব command (prefix, no-prefix, baby, onReply, onReaction — সব) use করতে পারবে। Group admin, developer (যদি adminBot-এ না থাকে), whitelist — সবাই ব্লক থাকবে।"
         },
         category: "admin",
         guide: {
@@ -29,7 +29,7 @@ module.exports = {
 
     langs: {
         en: {
-            on: "✅ Admin Only Mode চালু হয়েছে। এখন শুধু bot admin / group admin-রাই bot-এর সব command (prefix, no-prefix, baby, reply, reaction সহ) use করতে পারবে।",
+            on: "✅ Admin Only Mode চালু হয়েছে। এখন শুধু config.adminBot-এ থাকা bot admin-রাই bot-এর সব command (prefix, no-prefix, baby, reply, reaction সহ) use করতে পারবে। Group admin/developer/whitelist সহ বাকি সবাই ব্লক থাকবে।",
             off: "🔓 Admin Only Mode বন্ধ হয়েছে। এখন সবাই আগের মতো bot use করতে পারবে।",
             alreadyOn: "⚠️ Admin Only Mode এখনই চালু আছে।",
             alreadyOff: "⚠️ Admin Only Mode এখনই বন্ধ আছে।",
@@ -48,7 +48,7 @@ module.exports = {
 
     onStart: async function ({ args, message, getLang }) {
         const { config } = global.GoatBot;
-        const aom = config.adminOnlyMode = config.adminOnlyMode || { status: false, ignoreCommand: [] };
+        const aom = config.adminOnly = config.adminOnly || { status: false, ignoreCommand: [] };
         if (!Array.isArray(aom.ignoreCommand)) aom.ignoreCommand = [];
 
         const save = () => writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
