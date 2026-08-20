@@ -14,21 +14,30 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         const { GoatBot } = global;
         const { author } = event;
 
-        // Global adminOnly / whitelist gate — when either mode is on, every
-        // auto-trigger in this file (onAnyEvent, onFirstChat, onChat,
-        // eventCommands, and onEvent — i.e. welcome/leave/logsbot/checkwarn/
-        // autoUpdateInfoThread/etc.) is silently skipped for everyone except
-        // bot admins (+ whitelist users, when only whitelist mode is on).
-        // Nothing is sent back to non-admin/non-whitelisted users.
-        if (!isAllowedByAccessMode(config, undefined, threadID, isGroup, senderID)) return;
+        // Global adminOnly / whitelist gate — when either mode is on,
+        // onAnyEvent / onFirstChat / eventCommands / onEvent (i.e. welcome/
+        // leave/logsbot/checkwarn/autoUpdateInfoThread/etc., none of which
+        // have a per-command name to check against ignoreCommand) are
+        // silently skipped for everyone except bot admins (+ whitelist
+        // users, when only whitelist mode is on). Nothing is sent back to
+        // non-admin/non-whitelisted users.
+        //
+        // onChat is deliberately NOT covered by this early return — it is
+        // gated further down, per command, with that command's real name.
+        // Gating it here with commandName=undefined would never match any
+        // adminOnly.ignoreCommand / whitelist.ignoreCommand entry, so a
+        // command like "baby" added to ignoreCommand to stay open even
+        // with adminOnly/whitelist on would silently never get a chance to
+        // run. Bot admins always pass this either way.
+        const passesGlobalGate = isAllowedByAccessMode(config, undefined, threadID, isGroup, senderID);
 
         // এখানে যোগ করা হয়েছে → এরর ফিক্স
         let isUserCallCommand = false;
 
         // onAnyEvent
         let args = [];
-        if (typeof event.body == "string" && event.body.startsWith(prefix)) args = event.body.split(/ +/);
-        const allOnAnyEvent = GoatBot.onAnyEvent || [];
+        if (passesGlobalGate && typeof event.body == "string" && event.body.startsWith(prefix)) args = event.body.split(/ +/);
+        const allOnAnyEvent = passesGlobalGate ? (GoatBot.onAnyEvent || []) : [];
         for (const key of allOnAnyEvent) {
             if (typeof key !== "string") continue;
             const command = GoatBot.commands.get(key);
@@ -57,7 +66,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         }
 
         // onFirstChat
-        const allOnFirstChat = GoatBot.onFirstChat || [];
+        const allOnFirstChat = passesGlobalGate ? (GoatBot.onFirstChat || []) : [];
         args = body ? body.split(/ +/) : [];
         for (const itemOnFirstChat of allOnFirstChat) {
             const { commandName, threadIDsChattedFirstTime } = itemOnFirstChat;
@@ -93,6 +102,14 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             const command = GoatBot.commands.get(key);
             if (!command) continue;
             const commandName = command.config.name;
+
+            // Per-command adminOnly/whitelist check — done here (not as a
+            // blanket gate above) so adminOnly.ignoreCommand /
+            // whitelist.ignoreCommand can actually exempt a specific
+            // onChat command like "baby" when adminOnly/whitelist is on.
+            // Both modes off -> this always passes, same as before.
+            if (!isAllowedByAccessMode(config, commandName, threadID, isGroup, senderID)) continue;
+
             const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
             const needRole = roleConfig.onChat;
             if (needRole > role) continue;
@@ -118,7 +135,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         }
 
         // handlerEvent
-        const allEventCommand = GoatBot.eventCommands.entries();
+        const allEventCommand = passesGlobalGate ? GoatBot.eventCommands.entries() : [];
         for (const [key] of allEventCommand) {
             const getEvent = GoatBot.eventCommands.get(key);
             if (!getEvent) continue;
@@ -138,7 +155,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         }
 
         // onEvent
-        const allOnEvent = GoatBot.onEvent || [];
+        const allOnEvent = passesGlobalGate ? (GoatBot.onEvent || []) : [];
         args = [];
         for (const key of allOnEvent) {
             if (typeof key !== "string") continue;

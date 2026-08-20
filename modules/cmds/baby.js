@@ -3,7 +3,7 @@ const axios = require("axios");
 let simsim = "";
 // Note : THIS CODE MADE BY RX @RX_ABDULLAH007 (GIVE CREDIT OTHERWISE EVERYONE FUCK YOU AT 300 KM SPEED)
 
-// 🔒 threadID lock — thread thake trigger active thakle porer trigger ignore hobe
+// 🔒 threadID lock — ignore new trigger while one is still active
 const triggerLocks = new Set();
 
 const typing = async (api, threadID, ms = 3000) => {
@@ -443,7 +443,7 @@ module.exports = {
 		if (!text) return;
 
 		if (triggers.includes(text)) {
-			// 🔒 typing chola obosthay same thread theke abar trigger asle ignore
+			// 🔒 ignore repeat trigger while typing is active
 			if (triggerLocks.has(event.threadID)) return;
 			triggerLocks.add(event.threadID);
 
@@ -459,7 +459,7 @@ module.exports = {
 			const query = text.replace(matchPrefix, "").trim();
 			if (!query) return;
 
-			// 🔒 typing chola obosthay same thread theke abar trigger asle ignore
+			// 🔒 ignore repeat trigger while typing is active
 			if (triggerLocks.has(event.threadID)) return;
 			triggerLocks.add(event.threadID);
 
