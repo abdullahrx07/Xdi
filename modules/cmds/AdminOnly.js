@@ -5,43 +5,41 @@ module.exports = {
         name: "adminonly",
         aliases: ["ao"],
         version: "1.0",
-        author: "rX Abdullah",
+        author: "rX",
         countDown: 3,
         role: 1, // botAdmin only (new system: 0=all, 1=botAdmin, 2=botAdmin+groupAdmin, 3=NDH/whitelist)
         shortDescription: {
-            en: "Admin-only mode — শুধু bot admin bot use করতে পারবে"
+            en: "Only bot admin can use the bot"
         },
         longDescription: {
-            en: "Admin-only mode on/off করো। on থাকলে শুধু config.adminBot-এ থাকা uid রাই bot response/auto-trigger পাবে, বাকি সবাই সম্পূর্ণ silent skip হবে — কোনো reply বা event trigger হবে না।"
+            en: "Turn admin only mode on or off. When on, only bot admin gets a response, everyone else is ignored."
         },
         category: "admin",
         guide: {
             en:
-`🔒 Admin-Only Command:
-
-{pn} on              — admin-only mode চালু (শুধু bot admin)
-{pn} off              — admin-only mode বন্ধ
-{pn} ignore <cmd>     — একটা command কে admin-only থেকে exempt করো (সবার জন্য open থাকবে)
-{pn} unignore <cmd>   — exempt সরাও
-{pn} list             — এখন কী অবস্থায় আছে দেখো`
+`{pn} on              - turn admin only on
+{pn} off              - turn admin only off
+{pn} ignore <cmd>     - let a command work for everyone
+{pn} unignore <cmd>   - remove that exemption
+{pn} list             - show current status`
         }
     },
 
     langs: {
         en: {
-            on: "🔒 Admin-only mode চালু হয়েছে। এখন থেকে শুধু bot admin-রা bot use করতে পারবে, বাকি সবার মেসেজ silently skip হবে।",
-            off: "🔓 Admin-only mode বন্ধ হয়েছে। স্বাভাবিক role/whitelist অনুযায়ী bot চলবে।",
-            alreadyOn: "⚠️ Admin-only mode এখনই চালু আছে।",
-            alreadyOff: "⚠️ Admin-only mode এখনই বন্ধ আছে।",
-            ignoreCmdAdded: "✅ '%1' command-টি admin-only থেকে exempt করা হয়েছে (সবার জন্য open)।",
-            ignoreCmdExists: "⚠️ '%1' আগে থেকেই ignore list-এ আছে।",
-            ignoreCmdRemoved: "🗑️ '%1' ignore list থেকে সরানো হয়েছে।",
-            ignoreCmdNotIn: "⚠️ '%1' ignore list-এ নেই।",
-            noCmd: "❌ কোনো command name দাও।",
-            listHeader: "🔒 Admin-Only Mode: %1\n🚫 Ignore Commands (সবার জন্য open):\n",
-            listEmpty: "  কোনো ignore command নেই।\n",
-            listItem: "  • %1\n",
-            unknownSub: "❌ অজানা subcommand। {pn} help দেখো।"
+            on: "Admin only is now on. Only bot admin can use the bot.",
+            off: "Admin only is now off. Bot will run normally.",
+            alreadyOn: "Admin only is already on.",
+            alreadyOff: "Admin only is already off.",
+            ignoreCmdAdded: "'%1' is now exempt from admin only.",
+            ignoreCmdExists: "'%1' is already in the ignore list.",
+            ignoreCmdRemoved: "'%1' removed from the ignore list.",
+            ignoreCmdNotIn: "'%1' is not in the ignore list.",
+            noCmd: "Please give a command name.",
+            listHeader: "Admin Only Mode: %1\nIgnore Commands:\n",
+            listEmpty: "  No ignore commands set.\n",
+            listItem: "  - %1\n",
+            unknownSub: "Unknown subcommand. See {pn} help."
         }
     },
 
@@ -92,7 +90,7 @@ module.exports = {
 
         // ——— list ———
         if (sub === "list") {
-            const statusText = ao.status ? "✅ চালু" : "❌ বন্ধ";
+            const statusText = ao.status ? "ON" : "OFF";
             let text = getLang("listHeader", statusText);
             if (ao.ignoreCommand.length === 0) {
                 text += getLang("listEmpty");
