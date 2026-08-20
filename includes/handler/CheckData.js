@@ -26,7 +26,26 @@ module.exports = async function (usersData, threadsData, event) {
 					return;
 				}
 
-				const threadData = await threadsData.create(threadID);
+				// E2EE (Labyrinth) threadIDs are JIDs — api.getThreadInfo() can't
+				// resolve those, so build a minimal fallback record instead of
+				// letting threadsData.create() call the FB API and throw.
+				// event.isGroup here is the E2EE bridge's best-effort guess (it's
+				// corrected against the DB later, once known) — good enough to
+				// avoid marking a brand-new E2EE group as a DM or vice versa.
+				const isJidThreadID = typeof threadID === 'string' && threadID.includes('@');
+				const fallbackThreadInfo = isJidThreadID ? {
+					threadName: null,
+					userInfo: [],
+					adminIDs: [],
+					nicknames: {},
+					emoji: null,
+					imageSrc: null,
+					approvalMode: null,
+					threadTheme: null,
+					threadType: event.isGroup === true ? 2 : 1
+				} : undefined;
+
+				const threadData = await threadsData.create(threadID, fallbackThreadInfo);
 				global.temp.createThreadDataError.delete(threadID);
 				log.info("DATABASE", `New Thread: ${threadID} | ${threadData.threadName} | ${config.database.type}`);
 			}

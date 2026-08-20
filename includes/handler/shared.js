@@ -184,7 +184,27 @@ async function buildContext({ api, threadModel, userModel, dashBoardModel, globa
         const lastFailedAt = global.temp.createThreadDataError.get(threadID);
         if (lastFailedAt && (Date.now() - lastFailedAt) < 60 * 1000) return null;
         try {
-            threadData = await threadsData.create(threadID);
+            // E2EE (Labyrinth) threadIDs are JIDs — api.getThreadInfo() can't
+            // resolve those, so build a minimal fallback record instead of
+            // letting threadsData.create() call the FB API and throw. Without
+            // this, every E2EE thread without an existing DB record (typically
+            // every 1-1 E2EE DM, since those never had a "classic" thread to
+            // begin with) fails create() here, buildContext() returns null,
+            // and onStart/onReply/onReaction/onEvent all silently no-op —
+            // the bot looks completely unresponsive in that DM.
+            const isJidThreadID = typeof threadID === 'string' && threadID.includes('@');
+            const fallbackThreadInfo = isJidThreadID ? {
+                threadName: null,
+                userInfo: [],
+                adminIDs: [],
+                nicknames: {},
+                emoji: null,
+                imageSrc: null,
+                approvalMode: null,
+                threadTheme: null,
+                threadType: isGroup === true ? 2 : 1
+            } : undefined;
+            threadData = await threadsData.create(threadID, fallbackThreadInfo);
             global.temp.createThreadDataError.delete(threadID);
             global.db.receivedTheFirstMessage[threadID] = true;
         } catch (err) {
@@ -199,7 +219,14 @@ async function buildContext({ api, threadModel, userModel, dashBoardModel, globa
     } else {
         if (autoRefreshThreadInfoFirstTime === true && !global.db.receivedTheFirstMessage[threadID]) {
             global.db.receivedTheFirstMessage[threadID] = true;
-            await threadsData.refreshInfo(threadID);
+            try {
+                await threadsData.refreshInfo(threadID);
+            } catch (err) {
+                // Never let a refresh failure (e.g. a stale/edge-case thread
+                // lookup) take down the whole event — worst case the cached
+                // threadData is a little stale, not silence.
+                log.err("DATABASE", `refreshInfo failed for ${threadID}`, err.message || err);
+            }
         }
     }
 
