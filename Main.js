@@ -124,13 +124,20 @@ global.temp = {
 // ——————————— CONFIG WATCHER ——————————— //
 const watchAndReloadConfig = (dir, type, prop, logName) => {
 	let lastModified = fs.statSync(dir).mtimeMs;
-	let isFirstModified = true;
 	fs.watch(dir, (eventType) => {
 		if (eventType === type) {
 			const oldConfig = global.GoatBot[prop];
 			setTimeout(() => {
 				try {
-					if (isFirstModified) { isFirstModified = false; return; }
+					// NOTE: previously a "skip the first change" flag lived
+					// here, meant to ignore the fs.watch fire caused by the
+					// bot's own initial file touch. In practice it also
+					// swallowed the FIRST real edit made after boot (e.g.
+					// the very first {p}adminonly on / off), so the in-memory
+					// config silently never updated on that first toggle —
+					// only a second save (or a full restart) would apply it.
+					// mtimeMs comparison below already prevents redundant
+					// reloads, so the extra flag wasn't needed.
 					if (lastModified === fs.statSync(dir).mtimeMs) return;
 					global.GoatBot[prop] = JSON.parse(fs.readFileSync(dir, 'utf-8'));
 					log.success(logName, `Reloaded ${dir.replace(process.cwd(), "")}`);

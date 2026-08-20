@@ -43,8 +43,11 @@ module.exports = {
       fs.writeFileSync(cachePath, JSON.stringify(bans, null, 2));
     }
 
-    // isAdmin = group admin (role 1) or bot admin (role 2)
-    const isAdmin = role >= 1;
+    // isAdmin = bot admin only (role 1). Group admin (role 2) is NOT
+    // allowed here — this must always match adminOnly mode's own rule
+    // (only config.adminBot IDs), otherwise adminOnly toggle can be
+    // bypassed by a group admin using this command's own gate.
+    const isAdmin = role === 1;
 
     if (args[0] == "view") {
       if (!args[1]) {
