@@ -1,63 +1,59 @@
-# @MARI-GBOT 〄
+<p align="center">
+  <a href="####"><img src="http://readme-typing-svg.herokuapp.com?color=cyan&center=true&vCenter=true&multiline=false&lines=`✦ 𝙏𝙊𝙍𝙐 𝘾𝙃𝘼𝙉 ✦`" alt="">
+</p>
 
-A powerful and modular **Facebook Messenger Bot Framework** built with **Node.js**.  
-This project includes a command system, event handlers, database support, uptime system, and dashboard-ready controllers.
+<br />
+<p align="center">
+    <a href="https://github.com/rxabdullah007/Maria-v3">
+        <img src="https://i.imgur.com/6usi1Xf.jpeg" alt="Logo">
+    </a>
 
----
+<h3 align="center">✦ 𝗛𝗥 𝗜𝗗 𝗢𝗬 ✦</h3>
 
-## ✨ Features
+<p align="center">
+    A simple Facebook Messenger Bot made by me (Kakashi).
+</p>
 
-- Modular command & event system  
-- Auto uptime system  
-- MongoDB & SQLite database support  
-- User / Thread / Global data controller  
-- Reply, Reaction & Event handlers  
-- Easy configuration & customization  
-- Dashboard-ready API structure  
+<p align="center">
+	<img alt="size" src="https://img.shields.io/github/repo-size/rxabdullah007/Maria-v3.svg?style=flat-square&label=size">
+	<img alt="code-version" src="https://img.shields.io/badge/dynamic/json?color=red&label=code%20version&prefix=v&query=%24.version&url=https%3A%2F%2Fraw.githubusercontent.com%2FmiraiPr0ject%2Fmiraiv2%2Fmaster%2Fpackage.json&style=flat-square">
+	<a href="https://github.com/rxabdullah007/Maria-v3/commits"><img alt="commits" src="https://img.shields.io/github/commit-activity/m/rxabdullah007/Maria-v3.svg?label=commit&style=flat-square"></a>
+    	<img alt="visitors" src="https://visitor-badge.laobi.icu/badge?page_id=rxabdullah007.Maria-v3">
+	
+</p>
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 or later - see the [COPYING](./COPYING) file for details.
+
+
+
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+
+## 🚀 Features
+
+-  Chat ai
+-  smart telking
+-  no prefix system
+-  etc
 
 ---
 
 ##
 
 - Facebook Messenger chatbot functionality
-- Facebook login through `appstate.txt` (cookies)
-- 
+- Facebook login through `appstate.json` (cookies)
+- 150+ built-in commands
 - Easily customizable structure for developers
 
 
 ## 🧰 Requirements
 
 - **Node.js version 18 or above (18+)**
-- Facebook `appstate.txt` file (login cookie JSON)
-
-
-## ⚙️ Installation
-
-### 1. Repository Clone Karein
-
-```bash
-https://github.com/abdullahrx07/MARI-GBOT.git
-```
-
-### 2. Dependencies Installed
-
-```bash
-npm install
-```
-
-### 3. Facebook Appstate Add Do it
-
-- Paste your Facebook account's `appstate.txt` file in the root folder.
-
-- Ensure that the file is valid and updated.
-
-### 4. Run the Bot
-
-```bash
-node index.js
-```
-
----
+- Facebook `appstate.json` file (login cookie JSON
+- 
 
 ## 🚀 Usage
 
@@ -68,10 +64,10 @@ node index.js
 - You can use available commands like:
 
 ```
-!help
-!up
-!song [name]
-!info
+.help
+.up
+.song [name]
+.info
 
 ```
 # No Prefix system for admins
@@ -88,65 +84,42 @@ info
 
 ---
 
+## 🛠️ Tech Used
 
-## 🧠 Core Modules
-
-- **Command System** – Easily extendable command architecture  
-- **Event Handler** – Handles message, reaction, and reply events  
-- **Database Layer** – Abstracted MongoDB & SQLite connectors  
-- **Controllers** – User, thread, global & dashboard data handling  
-- **Uptime System** – Keeps the bot alive automatically  
+- HTML5  
+- CSS3  
+- JavaScript (vanilla)
 
 ---
 
-## 🛠 Customization
+## 👨‍💻 Owner Info
 
-- Custom logic can be added in:
-- Uptime behavior can be modified in
+**Name:** Kakashi Hatake
+**Age:** 20+
+**Class:** Intermediate  
+**Lives in:** Jashore, Bangladesh 
+**Born in:** Satkhira 
+**Hobbies:** Grouping, Adventure 
 
+---
+
+
+
+🔗 Messenger: [Message Kakashi](https://m.me/100048786044500)
+
+---
+
+## 📁 File Structure
 
 
 ---
 
-## 📊 Dashboard Ready
+## ✨ OWNAR PHOTO
 
-Structured controllers designed for easy integration with dashboards and APIs.
-
----
-
-## 🤝 Contributors
-
-Thanks to everyone who contributed to this project:
-
-- **Original Framework Author**  
-- **Fork & Enhancements** – Community Contributors  
-
-Want to contribute?  
-Feel free to fork this repository and submit a pull request.
+![Preview](https://i.imgur.com/6usi1Xf.jpeg)
 
 ---
 
-## 📜 License
+## 💬 Thanks for visiting!
 
-This project is provided for **educational and development purposes only**.
-
----
-
-## ❤️ Credits
-
-Built with **Node.js**  
-
----
-
-## 🔄 Auto-Update System Changelog
-
-We have significantly upgraded the auto-update mechanism (`includes/rX/autoUpdate.js`) to make the bot more robust, self-healing, and secure.
-
-### ✨ What's Improved:
-1. **Critical Asset & Data Protection**: Expanded the protected paths list to automatically exclude the `includes/data` directory (preserving SQLite databases), as well as login sessions (`appstate.txt`, `appstate.json`, and dev variants) from being overwritten or wiped during updates.
-2. **Git Remote Origin Auto-Detection**: If the configured repository URL is empty, invalid, or returns a 404, the bot will automatically fall back to detecting and using the local repository's cloned Git remote origin.
-3. **Resilient Branch Fallbacks**: Added automatic failover between `main` and `master` default branches. If the target repository's default branch cannot be retrieved via API, it gracefully falls back and tries the other branch automatically.
-4. **Intelligent Auto-Dependency Sync**: The auto-updater now compares the remote and local `package.json` dependencies. If any dependencies have changed, it automatically executes `npm install` post-update before restarting, preventing startup crashes.
-5. **Standardized Diagnostics**: Replaced silent try-catch blocks with descriptive logger warnings and error reporting.
-
-> ⚠️ **Notice**: There is a known issue regarding Facebook's E2EE (End-to-End Encryption) module in the current build. This issue has been identified and will be fully fixed in the next update.
+Made with 💚 by **Kakashi**

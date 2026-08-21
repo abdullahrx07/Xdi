@@ -1,5 +1,5 @@
 const fs = require("fs-extra");
-const log = require("../utils/logger/log.js");
+const log = require("../logger/log.js");
 const path = require("path");
 
 let pathLanguageFile = `${__dirname}/${global.GoatBot.config.language}.lang`;

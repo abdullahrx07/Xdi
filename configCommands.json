@@ -6,14 +6,17 @@
   },
   "envCommands": {
     "daily": {
+      "rewardDay1": {
+        "coin": 100,
+        "exp": 10
+      },
       "rewardFirstDay": {
         "coin": 100,
         "exp": 10
       }
     },
     "notification": {
-      "delayPerGroup": 250,
-      "enableConfirmation": true
+      "delayPerGroup": 250
     },
     "rank": {
       "deltaNext": 5
